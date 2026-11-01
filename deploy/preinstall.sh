@@ -609,20 +609,9 @@ configure_disk_quotas() {
       command -v setquota >/dev/null 2>&1 || return 1
       if ! tune2fs -l "$source" 2>/dev/null | grep -q 'quota'; then
         if ! tune2fs -O quota "$source" >>"$LOG" 2>&1; then
-          warn "the quota feature could not be enabled on $source; trying legacy quota files"
-          mount -o remount,usrquota,grpquota "$target" >>"$LOG" 2>&1 || {
-            warn "the filesystem $target could not be remounted with legacy quotas"
-            return 1
-          }
-          quotacheck -cum "$target" >>"$LOG" 2>&1 || {
-            warn "quota files could not be created on $target"
-            return 1
-          }
-          quotaon "$target" >>"$LOG" 2>&1 || {
-            warn "quotas could not be enabled on $target"
-            return 1
-          }
-          return 0
+          warn "the ext4 quota feature on $source can only be enabled with the filesystem unmounted"
+          warn "use rescue mode to run: tune2fs -O quota $source, or use a separate ext4 volume created with mkfs.ext4 -O quota"
+          return 1
         fi
       fi
       mount -o remount,quota "$target" >>"$LOG" 2>&1 || {
