@@ -93,6 +93,7 @@ if [[ -d /etc/pure-ftpd/conf ]]; then
   fi
   chmod 0600 "$tls_cert"
   rm -f /etc/pure-ftpd/conf/CertFile
+  rm -f /etc/pure-ftpd/conf/FSCharset
   echo 1 > /etc/pure-ftpd/conf/TLS
   systemctl restart pure-ftpd >/dev/null 2>&1 || true
 fi
