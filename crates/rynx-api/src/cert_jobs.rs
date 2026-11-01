@@ -72,6 +72,42 @@ pub async fn start_mail_tls(
     .await
 }
 
+/// Issue a certificate in the foreground so callers such as the one-click
+/// installer can finish only after Nginx has the certificate installed.
+pub async fn issue_now(
+    state: &ApiState,
+    domain: &str,
+    email: &str,
+    staging: bool,
+    actor: &str,
+) -> Result<CertView, String> {
+    let request = Request::CertIssue {
+        domain: domain.to_string(),
+        email: email.to_string(),
+        staging,
+    };
+    let result = state.daemon.call(request, actor).await;
+    match result {
+        Ok(Response::Cert { cert }) => {
+            crate::webhooks::dispatch(
+                state,
+                "certificate.issued",
+                serde_json::json!({ "domain": domain, "message": "certificate issued" }),
+            );
+            Ok(cert)
+        }
+        Ok(_) => Err("daemon returned an unexpected certificate response".into()),
+        Err(err) => {
+            crate::webhooks::dispatch(
+                state,
+                "certificate.failed",
+                serde_json::json!({ "domain": domain, "message": err.to_string() }),
+            );
+            Err(err.to_string())
+        }
+    }
+}
+
 async fn spawn(
     state: &ApiState,
     domain: &str,

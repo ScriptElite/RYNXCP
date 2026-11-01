@@ -385,11 +385,43 @@ async fn run_job(state: ApiState, id: String, prepared: Prepared, actor: String)
                 .await
                 .map_err(|err| err.to_string())?;
         }
-        // Request TLS only after the installer has finished writing the app.
-        // Running the certificate job concurrently re-renders the website and
-        // can recreate a welcome page inside the document root.
+        // Request TLS only after the installer has finished writing the app and
+        // wait for it, so the installer does not report success before Nginx is
+        // actually serving the certificate.
         if prepared.tls {
-            crate::cert_jobs::start(&state, &domain, &prepared.owner_email, false, &actor).await;
+            set_step(
+                &state,
+                &id,
+                "requesting certificate",
+                "requesting the TLS certificate",
+            )
+            .await;
+            let mut certificate_error = None;
+            for attempt in 0..3 {
+                match crate::cert_jobs::issue_now(
+                    &state,
+                    &domain,
+                    &prepared.owner_email,
+                    false,
+                    &actor,
+                )
+                .await
+                {
+                    Ok(_) => {
+                        certificate_error = None;
+                        break;
+                    }
+                    Err(err) => {
+                        certificate_error = Some(err);
+                        if attempt < 2 {
+                            tokio::time::sleep(Duration::from_secs(5)).await;
+                        }
+                    }
+                }
+            }
+            if let Some(err) = certificate_error {
+                message.push_str(&format!(". Certificate pending: {err}"));
+            }
         }
         Ok::<(), String>(())
     }

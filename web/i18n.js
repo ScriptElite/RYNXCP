@@ -13,6 +13,7 @@
   ];
 
   const EN = {
+    "Solicitando certificado TLS": "Requesting TLS certificate",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav and MediaWiki on a new site with PHP, database and TLS",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -906,6 +907,7 @@
   };
 
   const PT = {
+    "Solicitando certificado TLS": "A solicitar certificado TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav e MediaWiki num site novo com PHP, base de dados e TLS",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -1728,6 +1730,7 @@
   };
 
   const FR = {
+    "Solicitando certificado TLS": "Demande du certificat TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav et MediaWiki sur un nouveau site avec PHP, base de données et TLS",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -2551,6 +2554,7 @@
   };
 
   const AR = {
+    "Solicitando certificado TLS": "جارٍ طلب شهادة TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress وLaravel وJoomla وGrav وMediaWiki في موقع جديد باستخدام PHP وقاعدة بيانات وTLS",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -3376,6 +3380,7 @@
   };
 
   const RU = {
+    "Solicitando certificado TLS": "Запрос TLS-сертификата",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav и MediaWiki на новом сайте с PHP, базой данных и TLS",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -4200,6 +4205,7 @@
   };
 
   const ZH = {
+    "Solicitando certificado TLS": "正在申请 TLS 证书",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress、Laravel、Joomla、Grav 和 MediaWiki，使用 PHP、数据库和 TLS 创建新站点",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -5021,6 +5027,7 @@
   };
 
   const JA = {
+    "Solicitando certificado TLS": "TLS証明書を申請中",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress、Laravel、Joomla、Grav、MediaWiki を PHP・データベース・TLS 付きの新規サイトに導入",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -5845,6 +5852,7 @@
   };
 
   const IT = {
+    "Solicitando certificado TLS": "Richiesta del certificato TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav e MediaWiki su un nuovo sito con PHP, database e TLS",
     "Joomla": "Joomla",
     "Grav": "Grav",
@@ -6663,6 +6671,7 @@
   };
 
   const DE = {
+    "Solicitando certificado TLS": "TLS-Zertifikat wird angefordert",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav und MediaWiki auf einer neuen Website mit PHP, Datenbank und TLS",
     "Joomla": "Joomla",
     "Grav": "Grav",

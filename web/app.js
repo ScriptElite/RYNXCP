@@ -2167,6 +2167,7 @@ const INSTALLER_STATUS_LABELS = {
   'creating database': 'Creando la base de datos',
   downloading: 'Descargando la aplicación',
   installing: 'Instalando la aplicación',
+  'requesting certificate': 'Solicitando certificado TLS',
   succeeded: 'Completado',
   failed: 'Error',
 };
