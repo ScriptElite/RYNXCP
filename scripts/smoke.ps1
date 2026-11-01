@@ -316,6 +316,17 @@ try {
     }
     $null = RequestJson 'DELETE' '/api/v1/websites/staging.example.com'
 
+    Write-Host '==> website logs and mail queue'
+    $logs = RequestJson 'GET' '/api/v1/websites/php.example.com/logs?kind=access&lines=20'
+    if ($logs.kind -ne 'log_text' -or -not $logs.content) { throw 'website logs missing' }
+    $queue = RequestJson 'GET' '/api/v1/mail/queue'
+    if ($queue.kind -ne 'mail_queue' -or @($queue.entries).Count -lt 1) { throw 'mail queue missing' }
+    $null = RequestJson 'POST' '/api/v1/mail/queue' @{ action = 'flush' }
+    $null = RequestJson 'POST' '/api/v1/mail/queue' @{
+        action = 'delete'; id = @($queue.entries)[0].id
+    }
+    if ((RequestJson 'GET' '/api/v1/mail/queue').kind -ne 'mail_queue') { throw 'mail queue refresh failed' }
+
     Write-Host '==> account suspension/resume'
     $suspended = PostJson '/api/v1/accounts' @{
         username = 'acme'; email = 'acme@example.com'; disk_limit_mb = 2048

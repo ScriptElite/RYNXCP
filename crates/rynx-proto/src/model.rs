@@ -132,6 +132,16 @@ pub enum Request {
         username: String,
         key: String,
     },
+    WebsiteLogs {
+        domain: String,
+        kind: String,
+        lines: u32,
+    },
+    MailQueue,
+    MailQueueAction {
+        action: String,
+        id: Option<String>,
+    },
 
     CertIssue {
         domain: String,
@@ -298,6 +308,12 @@ pub enum Response {
     },
     SshKeys {
         keys: Vec<String>,
+    },
+    LogText {
+        content: String,
+    },
+    MailQueue {
+        entries: Vec<MailQueueEntry>,
     },
     Cert {
         cert: CertView,
@@ -1025,6 +1041,16 @@ fn default_metrics_minutes() -> u32 {
 
 fn default_log_lines() -> u32 {
     100
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MailQueueEntry {
+    pub id: String,
+    pub size: u64,
+    pub arrival: String,
+    pub sender: String,
+    pub recipients: Vec<String>,
+    pub status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

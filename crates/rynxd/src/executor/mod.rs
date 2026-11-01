@@ -16,8 +16,8 @@ use async_trait::async_trait;
 
 use rynx_core::{CoreError, DaemonConfig};
 use rynx_proto::{
-    AccountSpec, AppSpec, CertView, FileEntry, InstallerApplySpec, MailDomainSpec, PackageUpdate,
-    ProgramInfo, SystemInfo,
+    AccountSpec, AppSpec, CertView, FileEntry, InstallerApplySpec, MailDomainSpec, MailQueueEntry,
+    PackageUpdate, ProgramInfo, SystemInfo,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -291,6 +291,9 @@ pub trait Executor: Send + Sync {
     async fn offsite_backup(&self, path: &Path, tag: &str) -> ExecResult<bool>;
     async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()>;
     async fn clone_database(&self, source: &str, target: &str) -> ExecResult<()>;
+    async fn read_log_tail(&self, path: &Path, lines: u32) -> ExecResult<String>;
+    async fn mail_queue(&self) -> ExecResult<Vec<MailQueueEntry>>;
+    async fn mail_queue_action(&self, action: &str, id: Option<&str>) -> ExecResult<()>;
     async fn rewrite_clone_config(
         &self,
         username: &str,

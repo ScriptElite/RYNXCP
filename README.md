@@ -73,6 +73,8 @@ reconciliation engine and UI are original.
 | Programs | Installed software, live service state, restart/stop controls, pending updates and upgrade button |
 | Users | owner/admin/operator/viewer roles, audited impersonation and revocation |
 | API | Personal API tokens (Bearer) and active session management |
+| Logs | Per-site Nginx access/error logs and PHP error log tail |
+| Mail queue | Inspect, flush, hold and delete Postfix queue messages |
 | Packages | Reusable plans with enforced website+app, alias, mail, database, FTP and backup limits, templates and a seeded editable default |
 | Languages | Ten UI languages, per-user saved locale and localized system email |
 
@@ -940,6 +942,7 @@ POST   /api/v1/users/{username}/impersonate
 GET|POST   /api/v1/accounts          DELETE /api/v1/accounts/{username}
 GET|POST   /api/v1/websites          DELETE /api/v1/websites/{domain}
 POST       /api/v1/websites/{domain}/clone
+GET        /api/v1/websites/{domain}/logs?kind=access|error|php&lines=200
 GET        /api/v1/php/versions
 GET|POST   /api/v1/php-pools         DELETE /api/v1/php-pools/{username}
 GET|POST   /api/v1/apps              DELETE /api/v1/apps/{username}/{name}
@@ -949,6 +952,7 @@ GET|POST   /api/v1/mail/domains       DELETE /api/v1/mail/domains/{domain}
 POST       /api/v1/mail/domains/{domain}/tls
 GET|POST   /api/v1/mail/accounts      DELETE /api/v1/mail/accounts/{id}
 GET        /api/v1/mail/filters
+GET|POST   /api/v1/mail/queue
 GET|POST   /api/v1/backups           DELETE /api/v1/backups/{id}
 POST       /api/v1/backups/{id}/restore
 GET        /api/v1/backups/{id}/download

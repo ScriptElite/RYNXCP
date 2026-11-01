@@ -1177,6 +1177,7 @@ async function renderWebsites() {
       td(`<span class="mono small">${esc(spec.docroot)}</span>`),
       td([
         btn('Archivos', 'website-files', spec.domain),
+        btn('Logs', 'website-logs', spec.domain, 'tiny ghost'),
         writable ? btn('Clonar', 'website-clone', spec.domain, 'tiny ghost') : '',
         writable ? btn('Editar', 'website-edit', spec.domain) : '',
         writable ? btn('Eliminar', 'website-delete', spec.domain, 'tiny danger') : '',
@@ -1187,6 +1188,55 @@ async function renderWebsites() {
   $('#view').innerHTML =
     sectionHead('Sitios web', writable ? `<button class="btn primary" data-action="website-new">Nuevo sitio</button>` : '') +
     table(['Dominio', 'Cuenta', 'Runtime', 'TLS', 'Estado', 'Docroot', ''], rows, 'Aún no hay virtual hosts.');
+}
+
+function openWebsiteLogsModal(domain) {
+  openModal({
+    title: `Logs · ${domain}`,
+    submitLabel: 'Cerrar',
+    html: `<div class="form-grid">
+      ${fSelect('kind', 'Tipo', [
+        { value: 'access', label: 'Acceso' },
+        { value: 'error', label: 'Errores' },
+        { value: 'php', label: 'PHP' },
+      ], { value: 'access' })}
+      ${fInput('lines', 'Líneas', { type: 'number', value: 200, min: 1, max: 500 })}
+    </div>
+    <pre class="console-out" id="website-logs-output">${esc(T('Cargando…'))}</pre>`,
+    onMount: (form) => {
+      const output = form.querySelector('#website-logs-output');
+      const load = async () => {
+        const kind = form.elements.kind.value;
+        const lines = form.elements.lines.value || 200;
+        const data = await api(`/api/v1/websites/${encodeURIComponent(domain)}/logs?kind=${encodeURIComponent(kind)}&lines=${encodeURIComponent(lines)}`);
+        output.textContent = data.content || T('Sin logs.');
+      };
+      form.elements.kind.addEventListener('change', () => load().catch((err) => { output.textContent = err.message; }));
+      load().catch((err) => { output.textContent = err.message; });
+    },
+    onSubmit: async () => {},
+  });
+}
+
+async function openMailQueueModal() {
+  const data = await api('/api/v1/mail/queue');
+  const entries = data.entries || [];
+  const rows = entries.map((entry) => [
+    td(`<span class="mono small">${esc(entry.id)}</span>`),
+    td(esc(entry.size)),
+    td(esc(fmtDate(new Date(Number(entry.arrival || 0) * 1000).toISOString()))),
+    td(`<span class="mono small">${esc(entry.sender)}</span>`),
+    td(esc((entry.recipients || []).join(', '))),
+    td(badge(entry.status, entry.status === 'active' ? 'ok' : 'warn')),
+    td(btn('Eliminar', 'mail-queue-delete', entry.id, 'tiny danger'), 'actions'),
+  ]);
+  openModal({
+    title: 'Cola de correo',
+    submitLabel: 'Cerrar',
+    html: `<div class="section-head"><h2>${esc(T('Mensajes en cola'))}</h2><div>${btn('Reintentar todo', 'mail-queue-flush', 'all', 'tiny ghost')}</div></div>` +
+      table(['ID', 'Tamaño', 'Llegada', 'Remitente', 'Destinatarios', 'Estado', ''], rows, 'Sin mensajes en cola.'),
+    onSubmit: async () => {},
+  });
 }
 
 function openWebsiteCloneModal(domain) {
@@ -1811,7 +1861,7 @@ async function renderMail() {
       <span class="mono">webmail.dominio</span> para Roundcube. La autorespuesta y los filtros
       se gestionan dentro del webmail con el plugin Managesieve.
     </p></div>
-    ${sectionHead('Dominios de correo', writable ? '<button class="btn primary" data-action="mail-new">Activar correo</button>' : '')}
+    ${sectionHead('Dominios de correo', `${isAdmin() ? '<button class="btn ghost" data-action="mail-queue">Cola de correo</button> ' : ''}${writable ? '<button class="btn primary" data-action="mail-new">Activar correo</button>' : ''}`)}
     ${table(['Dominio', 'Servidor', 'Webmail', 'TLS', 'Buzones', 'Acciones'], rows, 'Publica un sitio para poder activar su correo.')}
     ${sectionHead('Buzones', '')}
     ${table(['Buzón', 'Cuota', 'Alias / reenvío', 'Estado', 'Acciones'], accountRows, 'Sin buzones; activa el correo de un dominio y crea el primero.')}`;
@@ -3016,6 +3066,20 @@ async function handleAction(action, id) {
       return navigate('files');
     case 'website-clone':
       return openWebsiteCloneModal(id);
+    case 'website-logs':
+      return openWebsiteLogsModal(id);
+    case 'mail-queue':
+      return openMailQueueModal();
+    case 'mail-queue-flush': {
+      await api('/api/v1/mail/queue', { method: 'POST', body: { action: 'flush' } });
+      toast(T('Cola actualizada'));
+      return openMailQueueModal();
+    }
+    case 'mail-queue-delete': {
+      await api('/api/v1/mail/queue', { method: 'POST', body: { action: 'delete', id } });
+      toast(T('Mensaje eliminado'));
+      return openMailQueueModal();
+    }
     case 'website-delete': {
       if (!confirm(TF('¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?', { id }))) return;
       await api(`/api/v1/websites/${encodeURIComponent(id)}`, { method: 'DELETE' });

@@ -11,7 +11,7 @@ use rynx_core::paths::{remove_managed, write_managed};
 use rynx_core::DaemonConfig;
 use rynx_proto::{
     AccountSpec, AppSpec, CertView, CertificateStatus, FileEntry, InstallerApp, InstallerApplySpec,
-    MailDomainSpec, PackageUpdate, ProgramInfo, SystemInfo,
+    MailDomainSpec, MailQueueEntry, PackageUpdate, ProgramInfo, SystemInfo,
 };
 
 use super::{
@@ -730,6 +730,26 @@ impl Executor for SimExecutor {
     }
 
     async fn clone_database(&self, _source: &str, _target: &str) -> ExecResult<()> {
+        Ok(())
+    }
+
+    async fn read_log_tail(&self, path: &Path, lines: u32) -> ExecResult<String> {
+        let _ = lines;
+        Ok(format!("simulated log for {}", path.display()))
+    }
+
+    async fn mail_queue(&self) -> ExecResult<Vec<MailQueueEntry>> {
+        Ok(vec![MailQueueEntry {
+            id: "SIMULATED01".into(),
+            size: 1024,
+            arrival: "0".into(),
+            sender: "sender@example.com".into(),
+            recipients: vec!["recipient@example.com".into()],
+            status: "active".into(),
+        }])
+    }
+
+    async fn mail_queue_action(&self, _action: &str, _id: Option<&str>) -> ExecResult<()> {
         Ok(())
     }
 

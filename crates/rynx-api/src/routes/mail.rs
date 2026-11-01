@@ -190,3 +190,43 @@ pub async fn delete_account(
         .await?;
     Ok(Json(response))
 }
+
+pub async fn queue(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.require_admin()?;
+    auth.require_global()?;
+    let response = state
+        .daemon
+        .call(Request::MailQueue, &auth.user.username)
+        .await?;
+    Ok(Json(response))
+}
+
+#[derive(serde::Deserialize)]
+pub struct QueueAction {
+    pub action: String,
+    #[serde(default)]
+    pub id: Option<String>,
+}
+
+pub async fn queue_action(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Json(body): Json<QueueAction>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.require_admin()?;
+    auth.require_global()?;
+    let response = state
+        .daemon
+        .call(
+            Request::MailQueueAction {
+                action: body.action,
+                id: body.id,
+            },
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}

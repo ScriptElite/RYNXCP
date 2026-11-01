@@ -13,6 +13,19 @@
   ];
 
   const EN = {
+    "Reintentar todo": "Retry all",
+    "Llegada": "Arrival",
+    "Destinatarios": "Recipients",
+    "Sin mensajes en cola.": "No messages in the queue.",
+    "Acceso": "Access",
+    "Errores": "Errors",
+    "Líneas": "Lines",
+    "Sin logs.": "No logs.",
+    "Mensajes en cola": "Messages in the queue",
+    "Cola actualizada": "Queue updated",
+    "Mensaje eliminado": "Message deleted",
+    "Cola de correo": "Mail queue",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "API tokens and active sessions",
     "Tokens API": "API tokens",
     "Nuevo token": "New token",
@@ -849,6 +862,19 @@
   };
 
   const PT = {
+    "Reintentar todo": "Tentar novamente tudo",
+    "Llegada": "Chegada",
+    "Destinatarios": "Destinatários",
+    "Sin mensajes en cola.": "Sem mensagens na fila.",
+    "Acceso": "Acesso",
+    "Errores": "Erros",
+    "Líneas": "Linhas",
+    "Sin logs.": "Sem logs.",
+    "Mensajes en cola": "Mensagens na fila",
+    "Cola actualizada": "Fila atualizada",
+    "Mensaje eliminado": "Mensagem eliminada",
+    "Cola de correo": "Fila de correio",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "Tokens de API e sessões ativas",
     "Tokens API": "Tokens API",
     "Nuevo token": "Novo token",
@@ -1614,6 +1640,19 @@
   };
 
   const FR = {
+    "Reintentar todo": "Tout réessayer",
+    "Llegada": "Arrivée",
+    "Destinatarios": "Destinataires",
+    "Sin mensajes en cola.": "Aucun message dans la file.",
+    "Acceso": "Accès",
+    "Errores": "Erreurs",
+    "Líneas": "Lignes",
+    "Sin logs.": "Aucun journal.",
+    "Mensajes en cola": "Messages dans la file",
+    "Cola actualizada": "File mise à jour",
+    "Mensaje eliminado": "Message supprimé",
+    "Cola de correo": "File de messagerie",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "Jetons API et sessions actives",
     "Tokens API": "Jetons API",
     "Nuevo token": "Nouveau jeton",
@@ -2380,6 +2419,19 @@
   };
 
   const AR = {
+    "Reintentar todo": "إعادة محاولة الكل",
+    "Llegada": "الوصول",
+    "Destinatarios": "المستلمون",
+    "Sin mensajes en cola.": "لا توجد رسائل في قائمة الانتظار.",
+    "Acceso": "الوصول",
+    "Errores": "الأخطاء",
+    "Líneas": "الأسطر",
+    "Sin logs.": "لا توجد سجلات.",
+    "Mensajes en cola": "الرسائل في قائمة الانتظار",
+    "Cola actualizada": "تم تحديث قائمة الانتظار",
+    "Mensaje eliminado": "تم حذف الرسالة",
+    "Cola de correo": "قائمة انتظار البريد",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "رموز API والجلسات النشطة",
     "Tokens API": "رموز API",
     "Nuevo token": "رمز جديد",
@@ -3148,6 +3200,19 @@
   };
 
   const RU = {
+    "Reintentar todo": "Повторить все",
+    "Llegada": "Прибытие",
+    "Destinatarios": "Получатели",
+    "Sin mensajes en cola.": "Нет сообщений в очереди.",
+    "Acceso": "Доступ",
+    "Errores": "Ошибки",
+    "Líneas": "Строки",
+    "Sin logs.": "Нет журналов.",
+    "Mensajes en cola": "Сообщения в очереди",
+    "Cola actualizada": "Очередь обновлена",
+    "Mensaje eliminado": "Сообщение удалено",
+    "Cola de correo": "Почтовая очередь",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "Токены API и активные сессии",
     "Tokens API": "Токены API",
     "Nuevo token": "Новый токен",
@@ -3915,6 +3980,19 @@
   };
 
   const ZH = {
+    "Reintentar todo": "全部重试",
+    "Llegada": "到达时间",
+    "Destinatarios": "收件人",
+    "Sin mensajes en cola.": "队列中没有邮件。",
+    "Acceso": "访问",
+    "Errores": "错误",
+    "Líneas": "行数",
+    "Sin logs.": "没有日志。",
+    "Mensajes en cola": "队列中的邮件",
+    "Cola actualizada": "队列已更新",
+    "Mensaje eliminado": "邮件已删除",
+    "Cola de correo": "邮件队列",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "API 令牌和活动会话",
     "Tokens API": "API 令牌",
     "Nuevo token": "新建令牌",
@@ -4679,6 +4757,19 @@
   };
 
   const JA = {
+    "Reintentar todo": "すべて再試行",
+    "Llegada": "到着",
+    "Destinatarios": "宛先",
+    "Sin mensajes en cola.": "キューにメッセージはありません。",
+    "Acceso": "アクセス",
+    "Errores": "エラー",
+    "Líneas": "行数",
+    "Sin logs.": "ログはありません。",
+    "Mensajes en cola": "キューのメッセージ",
+    "Cola actualizada": "キューを更新しました",
+    "Mensaje eliminado": "メッセージを削除しました",
+    "Cola de correo": "メールキュー",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "API トークンとアクティブなセッション",
     "Tokens API": "API トークン",
     "Nuevo token": "新しいトークン",
@@ -5446,6 +5537,19 @@
   };
 
   const IT = {
+    "Reintentar todo": "Riprova tutto",
+    "Llegada": "Arrivo",
+    "Destinatarios": "Destinatari",
+    "Sin mensajes en cola.": "Nessun messaggio in coda.",
+    "Acceso": "Accesso",
+    "Errores": "Errori",
+    "Líneas": "Righe",
+    "Sin logs.": "Nessun log.",
+    "Mensajes en cola": "Messaggi in coda",
+    "Cola actualizada": "Coda aggiornata",
+    "Mensaje eliminado": "Messaggio eliminato",
+    "Cola de correo": "Coda di posta",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "Token API e sessioni attive",
     "Tokens API": "Token API",
     "Nuevo token": "Nuovo token",
@@ -6207,6 +6311,19 @@
   };
 
   const DE = {
+    "Reintentar todo": "Alle erneut versuchen",
+    "Llegada": "Ankunft",
+    "Destinatarios": "Empfänger",
+    "Sin mensajes en cola.": "Keine Nachrichten in der Warteschlange.",
+    "Acceso": "Zugriff",
+    "Errores": "Fehler",
+    "Líneas": "Zeilen",
+    "Sin logs.": "Keine Logs.",
+    "Mensajes en cola": "Nachrichten in der Warteschlange",
+    "Cola actualizada": "Warteschlange aktualisiert",
+    "Mensaje eliminado": "Nachricht gelöscht",
+    "Cola de correo": "E-Mail-Warteschlange",
+    "ID": "ID",
     "Tokens de API y sesiones activas": "API-Token und aktive Sitzungen",
     "Tokens API": "API-Token",
     "Nuevo token": "Neuer Token",

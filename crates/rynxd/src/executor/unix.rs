@@ -1,7 +1,7 @@
 //! Linux executor. Every external command is invoked with an explicit argv,
 //! a scrubbed environment and no shell.
 
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -1896,6 +1896,95 @@ impl Executor for RealExecutor {
             rewritten = true;
         }
         Ok(rewritten)
+    }
+
+    async fn read_log_tail(&self, path: &Path, lines: u32) -> ExecResult<String> {
+        let mut file = std::fs::File::open(path)?;
+        let length = file.metadata()?.len();
+        file.seek(SeekFrom::Start(length.saturating_sub(256 * 1024)))?;
+        let mut data = Vec::new();
+        file.read_to_end(&mut data)?;
+        let text = String::from_utf8_lossy(&data);
+        let all: Vec<&str> = text.lines().collect();
+        let limit = lines.clamp(1, 500) as usize;
+        let start = all.len().saturating_sub(limit);
+        Ok(all[start..].join("\n"))
+    }
+
+    async fn mail_queue(&self) -> ExecResult<Vec<MailQueueEntry>> {
+        let output = run("postqueue", &["-j"]).await.unwrap_or_default();
+        let mut entries = Vec::new();
+        for line in output.lines() {
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                continue;
+            };
+            let id = value
+                .get("queue_id")
+                .and_then(|item| item.as_str())
+                .unwrap_or_default();
+            if id.is_empty() {
+                continue;
+            }
+            let recipients = value
+                .get("recipients")
+                .and_then(|item| item.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.get("address").and_then(|address| address.as_str()))
+                        .map(str::to_string)
+                        .collect()
+                })
+                .unwrap_or_default();
+            entries.push(MailQueueEntry {
+                id: id.to_string(),
+                size: value
+                    .get("message_size")
+                    .and_then(|item| item.as_u64())
+                    .unwrap_or(0),
+                arrival: value
+                    .get("arrival_time")
+                    .and_then(|item| item.as_i64())
+                    .map(|value| value.to_string())
+                    .unwrap_or_default(),
+                sender: value
+                    .get("sender")
+                    .and_then(|item| item.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                recipients,
+                status: value
+                    .get("queue_name")
+                    .and_then(|item| item.as_str())
+                    .unwrap_or("active")
+                    .to_string(),
+            });
+        }
+        Ok(entries)
+    }
+
+    async fn mail_queue_action(&self, action: &str, id: Option<&str>) -> ExecResult<()> {
+        match action {
+            "flush" => {
+                run("postqueue", &["-f"]).await?;
+            }
+            "delete" => {
+                let id = id.unwrap_or_default();
+                run("postsuper", &["-d", id]).await?;
+            }
+            "hold" => {
+                let id = id.unwrap_or_default();
+                run("postsuper", &["-h", id]).await?;
+            }
+            "release" => {
+                let id = id.unwrap_or_default();
+                run("postsuper", &["-H", id]).await?;
+            }
+            _ => {
+                return Err(ExecError::InvalidInput("invalid mail queue action".into()));
+            }
+        }
+        Ok(())
     }
 
     async fn delete_backup_file(&self, path: &Path) -> ExecResult<()> {

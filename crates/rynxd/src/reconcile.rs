@@ -256,6 +256,15 @@ impl Reconciler {
                 Ok(Response::Apps { apps })
             }
             Request::InstallerApply(spec) => self.installer_apply(spec, actor).await,
+            Request::WebsiteLogs {
+                domain,
+                kind,
+                lines,
+            } => self.website_logs(&domain, &kind, lines).await,
+            Request::MailQueue => self.mail_queue().await,
+            Request::MailQueueAction { action, id } => {
+                self.mail_queue_action(&action, id.as_deref(), actor).await
+            }
             Request::SshKeys { username } => self.ssh_keys(&username).await,
             Request::SshKeyAdd { username, key } => self.ssh_key_add(&username, &key, actor).await,
             Request::SshKeyDelete { username, key } => {
@@ -1469,6 +1478,73 @@ impl Reconciler {
             &format!("app={}", spec.app.as_str()),
         )?;
         Ok(Response::InstallerResult { message })
+    }
+
+    async fn website_logs(
+        &self,
+        domain: &str,
+        kind: &str,
+        lines: u32,
+    ) -> Result<Response, WireError> {
+        validate_domain(domain).map_err(invalid)?;
+        if !matches!(kind, "access" | "error" | "php") {
+            return Err(WireError::invalid("unsupported log kind"));
+        }
+        let website = self
+            .state
+            .get_website(domain)
+            .map_err(internal)?
+            .ok_or_else(|| WireError::not_found(format!("website '{domain}' not found")))?;
+        let path = if kind == "php" {
+            self.exec
+                .home(&website.spec.username)
+                .join("logs")
+                .join("php-error.log")
+        } else {
+            PathBuf::from(format!("/var/log/nginx/{domain}.{kind}.log"))
+        };
+        let content = self
+            .exec
+            .read_log_tail(&path, lines.clamp(1, 500))
+            .await
+            .map_err(exec_error)?;
+        Ok(Response::LogText { content })
+    }
+
+    async fn mail_queue(&self) -> Result<Response, WireError> {
+        if !self.cfg.mail_enabled {
+            return Err(WireError::unsupported("mail management is disabled"));
+        }
+        let entries = self.exec.mail_queue().await.map_err(exec_error)?;
+        Ok(Response::MailQueue { entries })
+    }
+
+    async fn mail_queue_action(
+        &self,
+        action: &str,
+        id: Option<&str>,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        if !self.cfg.mail_enabled {
+            return Err(WireError::unsupported("mail management is disabled"));
+        }
+        if !matches!(action, "flush" | "delete" | "hold" | "release") {
+            return Err(WireError::invalid("invalid mail queue action"));
+        }
+        if action != "flush" {
+            let id = id.unwrap_or_default();
+            if id.is_empty() || id.len() > 32 || !id.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+                return Err(WireError::invalid("invalid message id"));
+            }
+        }
+        self.exec
+            .mail_queue_action(action, id)
+            .await
+            .map_err(exec_error)?;
+        self.log(actor, "mail.queue", id.unwrap_or("all"), action)?;
+        Ok(Response::Ack {
+            message: format!("mail queue action '{action}' applied"),
+        })
     }
 
     async fn ssh_keys(&self, username: &str) -> Result<Response, WireError> {

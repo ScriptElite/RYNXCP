@@ -91,6 +91,7 @@ pub fn router(state: ApiState) -> Router {
             "/api/v1/websites/{domain}/clone",
             post(websites::clone_site),
         )
+        .route("/api/v1/websites/{domain}/logs", get(websites::logs))
         .route("/api/v1/websites/{domain}", delete(websites::delete))
         .route("/api/v1/files", get(files::list).delete(files::delete))
         .route("/api/v1/files/read", get(files::read))
@@ -122,6 +123,10 @@ pub fn router(state: ApiState) -> Router {
         )
         .route("/api/v1/mail/accounts/{id}", delete(mail::delete_account))
         .route("/api/v1/mail/filters", get(mail::filters))
+        .route(
+            "/api/v1/mail/queue",
+            get(mail::queue).post(mail::queue_action),
+        )
         .route("/api/v1/backups", get(backups::list).post(backups::create))
         .route("/api/v1/backups/{id}", delete(backups::delete))
         .route("/api/v1/backups/{id}/restore", post(backups::restore))

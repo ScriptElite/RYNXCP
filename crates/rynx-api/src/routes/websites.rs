@@ -1,4 +1,4 @@
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::{Extension, Json};
 use serde::Deserialize;
 
@@ -111,6 +111,37 @@ pub async fn clone_site(
                 source: domain,
                 target,
                 with_database: body.with_database,
+            },
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LogsQuery {
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub lines: Option<u32>,
+}
+
+pub async fn logs(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(domain): Path<String>,
+    Query(query): Query<LogsQuery>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    scope::ensure_domain(&state, &auth, &domain).await?;
+    let kind = query.kind.unwrap_or_else(|| "access".into());
+    let lines = query.lines.unwrap_or(200);
+    let response = state
+        .daemon
+        .call(
+            Request::WebsiteLogs {
+                domain,
+                kind,
+                lines,
             },
             &auth.user.username,
         )
