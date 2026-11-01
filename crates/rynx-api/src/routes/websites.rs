@@ -1,5 +1,6 @@
 use axum::extract::{Path, State};
 use axum::{Extension, Json};
+use serde::Deserialize;
 
 use rynx_proto::{Request, Response as DaemonResponse, TlsMode, WebsiteSpec};
 
@@ -65,6 +66,54 @@ pub async fn delete(
     let response = state
         .daemon
         .call(Request::WebsiteDelete { domain }, &auth.user.username)
+        .await?;
+    Ok(Json(response))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CloneRequest {
+    pub target: String,
+    #[serde(default = "default_true")]
+    pub with_database: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+pub async fn clone_site(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(domain): Path<String>,
+    Json(body): Json<CloneRequest>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.require_write()?;
+    scope::ensure_domain(&state, &auth, &domain).await?;
+    let target = body.target.trim().to_ascii_lowercase();
+    rynx_core::validate_domain(&target).map_err(|err| ApiError::BadRequest(err.to_string()))?;
+    if target.eq_ignore_ascii_case(&domain) {
+        return Err(ApiError::BadRequest(
+            "the clone target must be a different domain".into(),
+        ));
+    }
+    let source = scope::website_for_domain(&state, &auth.user.username, &domain).await?;
+    scope::ensure_website_upsert(&state, &auth, &target, &source.spec.username).await?;
+    let mut spec = source.spec.clone();
+    spec.domain = target.clone();
+    crate::limits::check_website(&state, &auth.user.username, &spec).await?;
+    if body.with_database {
+        crate::limits::check_database(&state, &auth.user.username, &domain).await?;
+    }
+    let response = state
+        .daemon
+        .call(
+            Request::WebsiteClone {
+                source: domain,
+                target,
+                with_database: body.with_database,
+            },
+            &auth.user.username,
+        )
         .await?;
     Ok(Json(response))
 }

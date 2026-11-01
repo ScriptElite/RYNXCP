@@ -286,6 +286,19 @@ try {
     ExpectStatus 400 { RequestJson 'GET' '/api/v1/files?domain=php.example.com&path=..%2F..%2Fetc%2Fpasswd' }
     ExpectStatus 404 { RequestJson 'GET' '/api/v1/files?domain=missing.example.com&path=' }
 
+    Write-Host '==> staging clone'
+    $clone = RequestJson 'POST' '/api/v1/websites/php.example.com/clone' @{
+        target = 'staging.example.com'; with_database = $false
+    }
+    if ($clone.kind -ne 'website' -or $clone.website.spec.domain -ne 'staging.example.com') {
+        throw 'staging clone failed'
+    }
+    $stagingRoot = Join-Path $root 'data/daemon/sandbox/home/acme/staging.example.com/public_html'
+    if (-not (Test-Path (Join-Path $stagingRoot 'index.php'))) {
+        throw 'staging files were not copied'
+    }
+    $null = RequestJson 'DELETE' '/api/v1/websites/staging.example.com'
+
     Write-Host '==> account suspension/resume'
     $suspended = PostJson '/api/v1/accounts' @{
         username = 'acme'; email = 'acme@example.com'; disk_limit_mb = 2048

@@ -225,6 +225,14 @@ impl Reconciler {
 
             Request::WebsiteUpsert(spec) => self.website_upsert(spec, actor).await,
             Request::WebsiteDelete { domain } => self.website_delete(&domain, actor).await,
+            Request::WebsiteClone {
+                source,
+                target,
+                with_database,
+            } => {
+                self.website_clone(&source, &target, with_database, actor)
+                    .await
+            }
             Request::WebsiteList => {
                 let websites = self.state.list_websites().map_err(internal)?;
                 Ok(Response::Websites { websites })
@@ -971,6 +979,146 @@ impl Reconciler {
             force_https: spec.force_https,
         };
         templates::nginx_site(&ctx)
+    }
+
+    async fn website_clone(
+        &self,
+        source_domain: &str,
+        target_domain: &str,
+        with_database: bool,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        validate_domain(source_domain).map_err(invalid)?;
+        validate_domain(target_domain).map_err(invalid)?;
+        if source_domain.eq_ignore_ascii_case(target_domain) {
+            return Err(WireError::invalid("source and target domains must differ"));
+        }
+        let source = self
+            .state
+            .get_website(source_domain)
+            .map_err(internal)?
+            .ok_or_else(|| WireError::not_found(format!("website '{source_domain}' not found")))?;
+        if self
+            .state
+            .get_website(target_domain)
+            .map_err(internal)?
+            .is_some()
+        {
+            return Err(WireError::conflict(format!(
+                "website '{target_domain}' already exists"
+            )));
+        }
+        if !matches!(source.spec.runtime, Runtime::Static | Runtime::Php { .. }) {
+            return Err(WireError::conflict(
+                "the staging clone supports static and PHP sites only",
+            ));
+        }
+        if source.spec.docroot == "public_html" {
+            return Err(WireError::conflict(
+                "legacy sites with a shared public_html cannot be cloned",
+            ));
+        }
+        let laravel = source.spec.docroot.ends_with("/public");
+        let source_root = if laravel {
+            source.spec.docroot.trim_end_matches("/public").to_string()
+        } else {
+            source.spec.docroot.clone()
+        };
+        let target_root = format!("{target_domain}/public_html");
+        let target_docroot = if laravel {
+            format!("{target_root}/public")
+        } else {
+            target_root.clone()
+        };
+
+        let databases: Vec<_> = self
+            .state
+            .list_databases()
+            .map_err(internal)?
+            .into_iter()
+            .filter(|database| database.domain.eq_ignore_ascii_case(source_domain))
+            .collect();
+        if databases.len() > 1 {
+            return Err(WireError::conflict(
+                "the staging clone supports at most one database",
+            ));
+        }
+        let source_db = databases.into_iter().next();
+        if source_db.is_some() && !with_database {
+            return Err(WireError::conflict(
+                "the source site has a database; enable database cloning",
+            ));
+        }
+        if source_db.is_some() {
+            let root = self.exec.home(&source.spec.username).join(&source_root);
+            if !root.join("wp-config.php").is_file() && !root.join(".env").is_file() {
+                return Err(WireError::conflict(
+                    "the source database config (wp-config.php or .env) was not found",
+                ));
+            }
+        }
+
+        let mut spec = source.spec.clone();
+        spec.domain = target_domain.to_string();
+        spec.aliases.clear();
+        spec.tls = TlsMode::Disabled;
+        spec.force_https = false;
+        spec.docroot = target_root.clone();
+        let mut view = match self.website_upsert(spec.clone(), actor).await? {
+            Response::Website { website } => website,
+            _ => return Err(WireError::internal("unexpected website response")),
+        };
+
+        self.exec
+            .copy_site_tree(&spec.username, &source_root, &target_root)
+            .await
+            .map_err(exec_error)?;
+
+        if let Some(source_db) = source_db {
+            let response = self
+                .database_create(target_domain, &format!("clone{}", random_hex(2)), actor)
+                .await?;
+            let target_db = match response {
+                Response::Database { database } => database,
+                _ => return Err(WireError::internal("unexpected database response")),
+            };
+            self.exec
+                .clone_database(&source_db.username, &target_db.username)
+                .await
+                .map_err(exec_error)?;
+            let rewritten = self
+                .exec
+                .rewrite_clone_config(
+                    &spec.username,
+                    &target_root,
+                    &source_db.username,
+                    &source_db.password,
+                    &target_db.username,
+                    &target_db.password,
+                )
+                .await
+                .map_err(exec_error)?;
+            if !rewritten {
+                return Err(WireError::conflict(
+                    "the application database config could not be rewritten",
+                ));
+            }
+        }
+
+        if laravel {
+            spec.docroot = target_docroot;
+            view = match self.website_upsert(spec, actor).await? {
+                Response::Website { website } => website,
+                _ => return Err(WireError::internal("unexpected website response")),
+            };
+        }
+        self.log(
+            actor,
+            "website.clone",
+            target_domain,
+            &format!("source={source_domain} database={with_database}"),
+        )?;
+        Ok(Response::Website { website: view })
     }
 
     async fn website_delete(&self, domain: &str, actor: &str) -> Result<Response, WireError> {

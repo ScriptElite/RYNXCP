@@ -78,6 +78,10 @@ pub fn router(state: ApiState) -> Router {
             "/api/v1/websites",
             get(websites::list).post(websites::create),
         )
+        .route(
+            "/api/v1/websites/{domain}/clone",
+            post(websites::clone_site),
+        )
         .route("/api/v1/websites/{domain}", delete(websites::delete))
         .route("/api/v1/files", get(files::list).delete(files::delete))
         .route("/api/v1/files/read", get(files::read))

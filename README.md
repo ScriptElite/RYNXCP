@@ -627,6 +627,17 @@ Guidance:
 - **Isolation:** the installer limits Ollama to one loaded model, one parallel
   worker and a 15-minute keep-alive, and binds it to `127.0.0.1` only.
 
+## Staging clone
+
+A PHP or static website can be cloned to a staging domain from its **Clonar**
+action. The clone copies the document root to `<target>/public_html`, disables
+TLS and HTTP-to-HTTPS redirects, and leaves the original site untouched. When
+the source has a single MariaDB database, RYNXCP creates a new database, imports
+a dump and rewrites `wp-config.php` or `.env` with the new credentials.
+Sites without a database are cloned as files only. Legacy sites that still use
+the shared `public_html`, managed runtimes (Node/Python/…) and sources with more
+than one database are rejected instead of risking a shared database.
+
 ## Databases
 
 A website can create one or more MariaDB databases. The database and its user
@@ -921,6 +932,7 @@ POST   /api/v1/users/{username}/impersonate
 
 GET|POST   /api/v1/accounts          DELETE /api/v1/accounts/{username}
 GET|POST   /api/v1/websites          DELETE /api/v1/websites/{domain}
+POST       /api/v1/websites/{domain}/clone
 GET        /api/v1/php/versions
 GET|POST   /api/v1/php-pools         DELETE /api/v1/php-pools/{username}
 GET|POST   /api/v1/apps              DELETE /api/v1/apps/{username}/{name}

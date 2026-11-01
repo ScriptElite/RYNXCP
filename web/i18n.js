@@ -13,6 +13,13 @@
   ];
 
   const EN = {
+    "Clonar": "Clone",
+    "Clonar sitio": "Clone site",
+    "Dominio de staging": "Staging domain",
+    "Clonar también la base de datos": "Also clone the database",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "Files and database are copied and credentials are rewritten. The original site is not modified.",
+    "Crear staging": "Create staging",
+    "Sitio de staging creado": "Staging site created",
     "Permitir acceso SSH (solo clave pública)": "Allow SSH access (public key only)",
     "Acceso SSH con clave pública al usuario de la cuenta": "Public-key SSH access to the account user",
     "Conéctate con:": "Connect with:",
@@ -819,6 +826,13 @@
   };
 
   const PT = {
+    "Clonar": "Clonar",
+    "Clonar sitio": "Clonar site",
+    "Dominio de staging": "Domínio de staging",
+    "Clonar también la base de datos": "Clonar também a base de dados",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "Os ficheiros e a base de dados são copiados e as credenciais são reescritas. O site original não é modificado.",
+    "Crear staging": "Criar staging",
+    "Sitio de staging creado": "Site de staging criado",
     "Permitir acceso SSH (solo clave pública)": "Permitir acesso SSH (apenas chave pública)",
     "Acceso SSH con clave pública al usuario de la cuenta": "Acesso SSH por chave pública ao utilizador da conta",
     "Conéctate con:": "Ligue-se com:",
@@ -1554,6 +1568,13 @@
   };
 
   const FR = {
+    "Clonar": "Cloner",
+    "Clonar sitio": "Cloner le site",
+    "Dominio de staging": "Domaine de staging",
+    "Clonar también la base de datos": "Cloner aussi la base de données",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "Les fichiers et la base de données sont copiés et les identifiants sont réécrits. Le site d'origine n'est pas modifié.",
+    "Crear staging": "Créer le staging",
+    "Sitio de staging creado": "Site de staging créé",
     "Permitir acceso SSH (solo clave pública)": "Autoriser l'accès SSH (clé publique uniquement)",
     "Acceso SSH con clave pública al usuario de la cuenta": "Accès SSH par clé publique à l'utilisateur du compte",
     "Conéctate con:": "Connectez-vous avec :",
@@ -2290,6 +2311,13 @@
   };
 
   const AR = {
+    "Clonar": "استنساخ",
+    "Clonar sitio": "استنساخ الموقع",
+    "Dominio de staging": "نطاق الاختبار",
+    "Clonar también la base de datos": "استنساخ قاعدة البيانات أيضًا",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "تُنسخ الملفات وقاعدة البيانات وتُعاد كتابة بيانات الاعتماد. لا يتم تعديل الموقع الأصلي.",
+    "Crear staging": "إنشاء بيئة اختبار",
+    "Sitio de staging creado": "تم إنشاء موقع الاختبار",
     "Permitir acceso SSH (solo clave pública)": "السماح بالوصول عبر SSH (مفتاح عام فقط)",
     "Acceso SSH con clave pública al usuario de la cuenta": "وصول SSH بالمفتاح العام لمستخدم الحساب",
     "Conéctate con:": "اتصل باستخدام:",
@@ -3028,6 +3056,13 @@
   };
 
   const RU = {
+    "Clonar": "Клонировать",
+    "Clonar sitio": "Клонировать сайт",
+    "Dominio de staging": "Домен для тестирования",
+    "Clonar también la base de datos": "Также клонировать базу данных",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "Файлы и база данных копируются, учётные данные перезаписываются. Исходный сайт не изменяется.",
+    "Crear staging": "Создать тестовый сайт",
+    "Sitio de staging creado": "Тестовый сайт создан",
     "Permitir acceso SSH (solo clave pública)": "Разрешить доступ по SSH (только публичный ключ)",
     "Acceso SSH con clave pública al usuario de la cuenta": "SSH-доступ по публичному ключу для пользователя аккаунта",
     "Conéctate con:": "Подключение:",
@@ -3765,6 +3800,13 @@
   };
 
   const ZH = {
+    "Clonar": "克隆",
+    "Clonar sitio": "克隆站点",
+    "Dominio de staging": "测试域名",
+    "Clonar también la base de datos": "同时克隆数据库",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "将复制文件和数据库并重写凭据。原站点不会更改。",
+    "Crear staging": "创建测试站点",
+    "Sitio de staging creado": "测试站点已创建",
     "Permitir acceso SSH (solo clave pública)": "允许 SSH 访问（仅公钥）",
     "Acceso SSH con clave pública al usuario de la cuenta": "使用公钥访问账户用户的 SSH",
     "Conéctate con:": "使用以下方式连接：",
@@ -4499,6 +4541,13 @@
   };
 
   const JA = {
+    "Clonar": "クローン",
+    "Clonar sitio": "サイトをクローン",
+    "Dominio de staging": "ステージングドメイン",
+    "Clonar también la base de datos": "データベースもクローン",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "ファイルとデータベースをコピーし、認証情報を書き換えます。元のサイトは変更されません。",
+    "Crear staging": "ステージングを作成",
+    "Sitio de staging creado": "ステージングサイトを作成しました",
     "Permitir acceso SSH (solo clave pública)": "SSH アクセスを許可（公開鍵のみ）",
     "Acceso SSH con clave pública al usuario de la cuenta": "アカウントユーザーへの公開鍵 SSH アクセス",
     "Conéctate con:": "接続コマンド:",
@@ -5236,6 +5285,13 @@
   };
 
   const IT = {
+    "Clonar": "Clona",
+    "Clonar sitio": "Clona sito",
+    "Dominio de staging": "Dominio di staging",
+    "Clonar también la base de datos": "Clona anche il database",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "I file e il database vengono copiati e le credenziali riscritte. Il sito originale non viene modificato.",
+    "Crear staging": "Crea staging",
+    "Sitio de staging creado": "Sito di staging creato",
     "Permitir acceso SSH (solo clave pública)": "Consenti accesso SSH (solo chiave pubblica)",
     "Acceso SSH con clave pública al usuario de la cuenta": "Accesso SSH con chiave pubblica all'utente dell'account",
     "Conéctate con:": "Connettiti con:",
@@ -5967,6 +6023,13 @@
   };
 
   const DE = {
+    "Clonar": "Klonen",
+    "Clonar sitio": "Website klonen",
+    "Dominio de staging": "Staging-Domain",
+    "Clonar también la base de datos": "Datenbank ebenfalls klonen",
+    "Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.": "Dateien und Datenbank werden kopiert und Zugangsdaten neu geschrieben. Die Original-Website bleibt unverändert.",
+    "Crear staging": "Staging erstellen",
+    "Sitio de staging creado": "Staging-Website erstellt",
     "Permitir acceso SSH (solo clave pública)": "SSH-Zugriff erlauben (nur öffentlicher Schlüssel)",
     "Acceso SSH con clave pública al usuario de la cuenta": "SSH-Zugriff per öffentlichem Schlüssel für den Kontobenutzer",
     "Conéctate con:": "Verbinden mit:",

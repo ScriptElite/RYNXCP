@@ -289,6 +289,17 @@ pub trait Executor: Send + Sync {
     async fn delete_backup_file(&self, path: &Path) -> ExecResult<()>;
     async fn repair_backup_permissions(&self, path: &Path) -> ExecResult<()>;
     async fn offsite_backup(&self, path: &Path, tag: &str) -> ExecResult<bool>;
+    async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()>;
+    async fn clone_database(&self, source: &str, target: &str) -> ExecResult<()>;
+    async fn rewrite_clone_config(
+        &self,
+        username: &str,
+        root: &str,
+        old_db: &str,
+        old_password: &str,
+        new_db: &str,
+        new_password: &str,
+    ) -> ExecResult<bool>;
     async fn remove_backup_dir(&self, username: &str) -> ExecResult<()>;
     async fn apply_cron(&self, username: &str, content: &str) -> ExecResult<()>;
 

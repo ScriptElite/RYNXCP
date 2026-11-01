@@ -1172,6 +1172,7 @@ async function renderWebsites() {
       td(`<span class="mono small">${esc(spec.docroot)}</span>`),
       td([
         btn('Archivos', 'website-files', spec.domain),
+        writable ? btn('Clonar', 'website-clone', spec.domain, 'tiny ghost') : '',
         writable ? btn('Editar', 'website-edit', spec.domain) : '',
         writable ? btn('Eliminar', 'website-delete', spec.domain, 'tiny danger') : '',
       ].filter(Boolean).join(' '), 'actions'),
@@ -1181,6 +1182,27 @@ async function renderWebsites() {
   $('#view').innerHTML =
     sectionHead('Sitios web', writable ? `<button class="btn primary" data-action="website-new">Nuevo sitio</button>` : '') +
     table(['Dominio', 'Cuenta', 'Runtime', 'TLS', 'Estado', 'Docroot', ''], rows, 'Aún no hay virtual hosts.');
+}
+
+function openWebsiteCloneModal(domain) {
+  openModal({
+    title: 'Clonar sitio',
+    submitLabel: 'Crear staging',
+    html: `<div class="form-grid">
+      ${fInput('target', 'Dominio de staging', { required: true, placeholder: 'staging.example.com' })}
+      <div class="full">${fCheck('with_database', 'Clonar también la base de datos', true)}</div>
+      <p class="muted small full" style="margin:0">Se copian los archivos, la base de datos y se reescriben las credenciales. El sitio original no se modifica.</p>
+    </div>`,
+    onSubmit: async (form) => {
+      const target = val(form, 'target').trim().toLowerCase();
+      await api(`/api/v1/websites/${encodeURIComponent(domain)}/clone`, {
+        method: 'POST',
+        body: { target, with_database: bool(form, 'with_database') },
+      });
+      toast('Sitio de staging creado');
+      await refresh();
+    },
+  });
 }
 
 async function openWebsiteModal(website = null) {
@@ -2940,6 +2962,8 @@ async function handleAction(action, id) {
       S.files.domain = id;
       S.files.path = '';
       return navigate('files');
+    case 'website-clone':
+      return openWebsiteCloneModal(id);
     case 'website-delete': {
       if (!confirm(TF('¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?', { id }))) return;
       await api(`/api/v1/websites/${encodeURIComponent(id)}`, { method: 'DELETE' });

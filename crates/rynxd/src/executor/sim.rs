@@ -723,6 +723,28 @@ impl Executor for SimExecutor {
         Ok(self.cfg.offsite_enabled)
     }
 
+    async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()> {
+        let source = self.home(username).join(source);
+        let target = self.home(username).join(target);
+        copy_tree(&source, &target)
+    }
+
+    async fn clone_database(&self, _source: &str, _target: &str) -> ExecResult<()> {
+        Ok(())
+    }
+
+    async fn rewrite_clone_config(
+        &self,
+        _username: &str,
+        _root: &str,
+        _old_db: &str,
+        _old_password: &str,
+        _new_db: &str,
+        _new_password: &str,
+    ) -> ExecResult<bool> {
+        Ok(true)
+    }
+
     async fn apply_cron(&self, username: &str, content: &str) -> ExecResult<()> {
         let dir = self.cfg.state_dir.join("sim-cron");
         std::fs::create_dir_all(&dir)?;
@@ -1126,4 +1148,23 @@ impl Executor for SimExecutor {
     async fn uid_in_use(&self, uid: u32) -> ExecResult<bool> {
         Ok(self.users_dir().join(format!("uid-{uid}")).exists())
     }
+}
+
+fn copy_tree(source: &Path, target: &Path) -> ExecResult<()> {
+    let meta = std::fs::symlink_metadata(source)?;
+    if meta.is_dir() {
+        std::fs::create_dir_all(target)?;
+        for entry in std::fs::read_dir(source)? {
+            let entry = entry?;
+            copy_tree(&entry.path(), &target.join(entry.file_name()))?;
+        }
+        std::fs::set_permissions(target, meta.permissions())?;
+    } else if meta.is_file() {
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(source, target)?;
+        std::fs::set_permissions(target, meta.permissions())?;
+    }
+    Ok(())
 }

@@ -628,6 +628,31 @@ fn set_owner_mode(fd: std::os::fd::RawFd, uid: u32, gid: u32, mode: u32) -> Exec
     set_mode(fd, mode)
 }
 
+fn copy_tree(source: &Path, target: &Path) -> ExecResult<()> {
+    let meta = std::fs::symlink_metadata(source)?;
+    if meta.is_dir() {
+        std::fs::create_dir_all(target)?;
+        for entry in std::fs::read_dir(source)? {
+            let entry = entry?;
+            copy_tree(&entry.path(), &target.join(entry.file_name()))?;
+        }
+        std::fs::set_permissions(target, meta.permissions())?;
+    } else if meta.file_type().is_symlink() {
+        let link = std::fs::read_link(source)?;
+        if target.exists() || std::fs::symlink_metadata(target).is_ok() {
+            let _ = std::fs::remove_file(target);
+        }
+        std::os::unix::fs::symlink(link, target)?;
+    } else if meta.is_file() {
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(source, target)?;
+        std::fs::set_permissions(target, meta.permissions())?;
+    }
+    Ok(())
+}
+
 async fn write_ssh_keys(home: &Path, username: &str, keys: &[String]) -> ExecResult<()> {
     let owner = User::from_name(username)
         .map_err(|err| ExecError::Io(err.to_string()))?
@@ -1777,6 +1802,100 @@ impl Executor for RealExecutor {
         base.push("--no-cache".into());
         run_owned("/usr/bin/env", &base).await?;
         Ok(true)
+    }
+
+    async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()> {
+        validate_relative_path(source)?;
+        validate_relative_path(target)?;
+        let home = self.home(username);
+        let source = home.join(source);
+        let target = home.join(target);
+        if !source.starts_with(&home) || !target.starts_with(&home) || source == target {
+            return Err(ExecError::InvalidInput(
+                "clone paths escape the account home".into(),
+            ));
+        }
+        let owner = User::from_name(username)
+            .map_err(|err| ExecError::Io(err.to_string()))?
+            .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?;
+        let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
+        copy_tree(&source, &target)
+    }
+
+    async fn clone_database(&self, source: &str, target: &str) -> ExecResult<()> {
+        let dump = run(
+            "mariadb-dump",
+            &[
+                "--protocol=socket",
+                "-uroot",
+                "--single-transaction",
+                "--routines",
+                "--triggers",
+                source,
+            ],
+        )
+        .await?;
+        run_with_stdin(
+            &self.cfg.mysql_bin,
+            &["--protocol=socket", "-uroot", target],
+            &dump,
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn rewrite_clone_config(
+        &self,
+        username: &str,
+        root: &str,
+        old_db: &str,
+        old_password: &str,
+        new_db: &str,
+        new_password: &str,
+    ) -> ExecResult<bool> {
+        validate_relative_path(root)?;
+        let home = self.home(username);
+        let root = home.join(root);
+        if !root.starts_with(&home) {
+            return Err(ExecError::InvalidInput(
+                "clone config escapes the account home".into(),
+            ));
+        }
+        let owner = User::from_name(username)
+            .map_err(|err| ExecError::Io(err.to_string()))?
+            .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?;
+        let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
+        let mut rewritten = false;
+        let wordpress = root.join("wp-config.php");
+        if wordpress.is_file() {
+            let content = std::fs::read_to_string(&wordpress)?;
+            let updated = content
+                .replace(old_db, new_db)
+                .replace(old_password, new_password);
+            std::fs::write(&wordpress, updated)?;
+            rewritten = true;
+        }
+        let env = root.join(".env");
+        if env.is_file() {
+            let content = std::fs::read_to_string(&env)?;
+            let mut lines = Vec::new();
+            for line in content.lines() {
+                if line.starts_with("DB_DATABASE=") {
+                    lines.push(format!("DB_DATABASE={new_db}"));
+                } else if line.starts_with("DB_USERNAME=") {
+                    lines.push(format!("DB_USERNAME={new_db}"));
+                } else if line.starts_with("DB_PASSWORD=") {
+                    lines.push(format!("DB_PASSWORD={new_password}"));
+                } else if line.starts_with("DB_HOST=") {
+                    lines.push("DB_HOST=localhost".to_string());
+                } else {
+                    lines.push(line.to_string());
+                }
+            }
+            std::fs::write(&env, format!("{}\n", lines.join("\n")))?;
+            rewritten = true;
+        }
+        Ok(rewritten)
     }
 
     async fn delete_backup_file(&self, path: &Path) -> ExecResult<()> {

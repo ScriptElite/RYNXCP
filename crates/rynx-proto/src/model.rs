@@ -99,6 +99,12 @@ pub enum Request {
     WebsiteDelete {
         domain: String,
     },
+    WebsiteClone {
+        source: String,
+        target: String,
+        #[serde(default = "default_true")]
+        with_database: bool,
+    },
     WebsiteList,
 
     PhpPoolUpsert(PhpPoolSpec),
@@ -566,6 +572,10 @@ fn default_force_https() -> bool {
 
 fn default_ssh_port() -> u16 {
     22
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
