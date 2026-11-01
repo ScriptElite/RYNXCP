@@ -195,8 +195,12 @@ record counters are calculated and shown read-only.
 The package field labelled **Dominios webs - apps** limits websites and managed
 applications together. The API enforces that combined count, web aliases, mail
 domains, mail accounts, databases, FTP accounts and backups; the Linux account
-disk quota comes from `account_mb`. Bandwidth, mail rate and system database
-counters are stored and shown but are not enforced as hard limits.
+disk quota comes from `account_mb` and is applied with `setquota` (ext4) or
+`xfs_quota` (XFS). The preinstaller enables user quotas on the filesystem that
+holds `/home`; when the filesystem cannot provide quotas, the panel logs a
+warning and the kernel does not enforce the disk limit. Bandwidth, mail rate and
+system database counters are stored and shown but are not enforced as hard
+limits.
 
 Existing plans keep their stored value. Because `web_domains` now covers both
 websites and applications, raise it where a legacy plan was sized for websites
@@ -1074,8 +1078,10 @@ Copyright (C) 2026 RYNXCP contributors.
 - Reverse PTR is configured at the IP provider.
 - FTP uses Pure-FTPd's global TLS certificate (explicit FTPS).
 - Website/application, alias, mail-domain, mail-account, database, FTP and backup
-  limits are enforced. Bandwidth, mail-rate and system-database counters are
-  stored and shown but are not enforced as hard limits.
+  limits are enforced. `account_mb` requires a filesystem with user-quota
+  support; `ext4` and `XFS` are handled automatically, other filesystems only
+  log a warning. Bandwidth, mail-rate and system-database counters are stored and
+  shown but are not enforced as hard limits.
 - The file manager is limited to a website document root and 5 MB per
   read/write/upload; symlinks are listed but cannot be edited.
 - phpMyAdmin requires both the panel session and a valid MariaDB login.
