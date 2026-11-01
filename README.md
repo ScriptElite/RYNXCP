@@ -930,8 +930,8 @@ rynxctl reconcile
 
 ## API
 
-Except for login, two-factor verification, password reset, health and meta, every
-route requires an authenticated session or a personal API token
+Except for login, two-factor/passkey verification, password reset, health and
+meta, every route requires an authenticated session or a personal API token
 (`Authorization: Bearer rynx_...`). Browser-session mutations require
 `x-csrf-token`; Bearer requests do not.
 
