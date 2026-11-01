@@ -23,7 +23,29 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: |
+          status=0
+          cargo clippy --workspace --all-targets --message-format=json -- -D warnings >clippy.json || status=$?
+          python3 - <<'PY'
+          import json
+          for line in open('clippy.json', encoding='utf-8'):
+              try:
+                  item = json.loads(line)
+              except ValueError:
+                  continue
+              if item.get('reason') != 'compiler-message':
+                  continue
+              message = item['message']
+              if message.get('level') not in ('error', 'warning'):
+                  continue
+              spans = message.get('spans') or []
+              if spans:
+                  span = spans[0]
+                  print(f"::error file={span['file_name']},line={span['line_start']},col={span['column_start']}::{message['message']}")
+              else:
+                  print(f"::error::{message['message']}")
+          PY
+          exit $status
       - name: Tests
         run: cargo test --workspace
       - name: Build
