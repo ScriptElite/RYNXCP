@@ -608,16 +608,28 @@ configure_disk_quotas() {
       command -v tune2fs >/dev/null 2>&1 || return 1
       command -v setquota >/dev/null 2>&1 || return 1
       if ! tune2fs -l "$source" 2>/dev/null | grep -q 'quota'; then
-        tune2fs -O quota "$source" >/dev/null 2>&1 || {
-          warn "the quota feature could not be enabled on $source"
-          return 1
-        }
+        if ! tune2fs -O quota "$source" >>"$LOG" 2>&1; then
+          warn "the quota feature could not be enabled on $source; trying legacy quota files"
+          mount -o remount,usrquota,grpquota "$target" >>"$LOG" 2>&1 || {
+            warn "the filesystem $target could not be remounted with legacy quotas"
+            return 1
+          }
+          quotacheck -cum "$target" >>"$LOG" 2>&1 || {
+            warn "quota files could not be created on $target"
+            return 1
+          }
+          quotaon "$target" >>"$LOG" 2>&1 || {
+            warn "quotas could not be enabled on $target"
+            return 1
+          }
+          return 0
+        fi
       fi
-      mount -o remount,quota "$target" >/dev/null 2>&1 || {
+      mount -o remount,quota "$target" >>"$LOG" 2>&1 || {
         warn "the filesystem $target could not be remounted with quotas"
         return 1
       }
-      quotaon "$target" >/dev/null 2>&1 || true
+      quotaon "$target" >>"$LOG" 2>&1 || true
       ;;
     xfs)
       command -v xfs_quota >/dev/null 2>&1 || return 1
