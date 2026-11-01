@@ -1748,6 +1748,8 @@ impl Executor for RealExecutor {
         let webroot_s = webroot.display().to_string();
         let mut args = vec![
             "certonly".to_string(),
+            "--cert-name".into(),
+            domain.to_string(),
             "--webroot".into(),
             "-w".into(),
             webroot_s,
