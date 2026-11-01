@@ -32,6 +32,11 @@ jobs:
             grep -E 'error(\[|:)' /tmp/clippy.log | head -20 | while IFS= read -r line; do
               echo "::error::$line"
             done
+            {
+              echo '```'
+              tail -80 /tmp/clippy.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
           exit "$status"
       - name: Tests
