@@ -9,6 +9,7 @@ use crate::email::Mailer;
 use crate::installer::InstallerJobs;
 use crate::ratelimit::LoginLimiter;
 use crate::two_factor::TwoFactor;
+use crate::webauthn::{PasskeyFlows, WebauthnClient};
 
 #[derive(Clone)]
 pub struct ApiState {
@@ -21,6 +22,8 @@ pub struct ApiState {
     pub installer_jobs: InstallerJobs,
     pub mailer: Option<Arc<Mailer>>,
     pub two_factor: Arc<TwoFactor>,
+    pub webauthn: Option<Arc<WebauthnClient>>,
+    pub passkey_flows: Arc<PasskeyFlows>,
     pub agent_lock: Arc<tokio::sync::Mutex<()>>,
     /// Serializes panel-user and hosting-account creation so email and
     /// username uniqueness checks cannot race across the two databases.

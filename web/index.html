@@ -30,12 +30,13 @@
         <p class="muted small">Sesión protegida con cookies HttpOnly, CSRF y Argon2id.</p>
       </form>
       <form id="twofa-form" class="stack hidden">
-        <p class="muted small">Introduce el código de 6 cifras enviado a <strong id="twofa-email">—</strong>.</p>
+        <p class="muted small" id="twofa-hint">Introduce el código de 6 cifras enviado a <strong id="twofa-email">—</strong>.</p>
         <label class="field">
           <span>Código de verificación</span>
           <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required />
         </label>
         <button class="btn primary wide" type="submit">Verificar</button>
+        <button class="btn ghost wide hidden" type="button" id="twofa-passkey">Usar passkey</button>
         <button class="btn ghost wide" type="button" id="twofa-cancel">Volver</button>
       </form>
       <form id="forgot-form" class="stack hidden">

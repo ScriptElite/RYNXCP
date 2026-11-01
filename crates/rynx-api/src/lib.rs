@@ -15,6 +15,7 @@ pub mod scope;
 pub mod security;
 pub mod state;
 pub mod two_factor;
+pub mod webauthn;
 pub mod webhooks;
 
 pub use error::ApiError;

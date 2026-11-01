@@ -76,6 +76,17 @@ CREATE TABLE IF NOT EXISTS webhooks (
 );
 CREATE INDEX IF NOT EXISTS idx_webhooks_user ON webhooks(user_id);
 
+CREATE TABLE IF NOT EXISTS passkeys (
+    id             TEXT PRIMARY KEY,
+    user_id        TEXT NOT NULL REFERENCES panel_users(id) ON DELETE CASCADE,
+    name           TEXT NOT NULL,
+    credential_id  TEXT NOT NULL UNIQUE,
+    credential     TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    last_used_at   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_passkeys_user ON passkeys(user_id);
+
 CREATE TABLE IF NOT EXISTS password_resets (
     token_hash  TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL REFERENCES panel_users(id) ON DELETE CASCADE,
@@ -232,6 +243,21 @@ pub struct WebhookView {
 pub struct WebhookTarget {
     pub url: String,
     pub secret: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PasskeyView {
+    pub id: String,
+    pub name: String,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StoredPasskey {
+    pub id: String,
+    pub credential_id: String,
+    pub credential: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -957,6 +983,131 @@ impl PanelDb {
             params![id, user_id],
         )?;
         Ok(changed > 0)
+    }
+
+    pub fn list_passkeys(&self, user_id: &str) -> Result<Vec<PasskeyView>, PanelError> {
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, created_at, last_used_at \
+             FROM passkeys WHERE user_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map(params![user_id], |row| {
+            Ok(PasskeyView {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                created_at: row.get(2)?,
+                last_used_at: row.get(3)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
+    pub fn count_passkeys(&self, user_id: &str) -> Result<u64, PanelError> {
+        let conn = self.conn()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM passkeys WHERE user_id = ?1",
+            params![user_id],
+            |row| row.get(0),
+        )?;
+        Ok(count.max(0) as u64)
+    }
+
+    pub fn list_passkey_credentials(
+        &self,
+        user_id: &str,
+    ) -> Result<Vec<StoredPasskey>, PanelError> {
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, credential_id, credential FROM passkeys WHERE user_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map(params![user_id], |row| {
+            Ok(StoredPasskey {
+                id: row.get(0)?,
+                credential_id: row.get(1)?,
+                credential: row.get(2)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
+    pub fn create_passkey(
+        &self,
+        user_id: &str,
+        name: &str,
+        credential_id: &str,
+        credential: &str,
+    ) -> Result<PasskeyView, PanelError> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let created_at = now_rfc3339();
+        let conn = self.conn()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM passkeys WHERE user_id = ?1",
+            params![user_id],
+            |row| row.get(0),
+        )?;
+        if count >= 20 {
+            return Err(PanelError::Validation(
+                "too many passkeys registered".into(),
+            ));
+        }
+        conn.execute(
+            "INSERT INTO passkeys (id, user_id, name, credential_id, credential, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, user_id, name, credential_id, credential, created_at],
+        )
+        .map_err(|err| {
+            if err.to_string().contains("UNIQUE") {
+                PanelError::Validation("this passkey is already registered".into())
+            } else {
+                PanelError::Db(err.to_string())
+            }
+        })?;
+        Ok(PasskeyView {
+            id,
+            name: name.to_string(),
+            created_at,
+            last_used_at: None,
+        })
+    }
+
+    pub fn delete_passkey(&self, user_id: &str, id: &str) -> Result<bool, PanelError> {
+        let conn = self.conn()?;
+        let changed = conn.execute(
+            "DELETE FROM passkeys WHERE id = ?1 AND user_id = ?2",
+            params![id, user_id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn touch_passkey(
+        &self,
+        user_id: &str,
+        credential_id: &str,
+        credential: Option<&str>,
+    ) -> Result<(), PanelError> {
+        let conn = self.conn()?;
+        let now = now_rfc3339();
+        if let Some(credential) = credential {
+            conn.execute(
+                "UPDATE passkeys SET last_used_at = ?1, credential = ?2 \
+                 WHERE user_id = ?3 AND credential_id = ?4",
+                params![now, credential, user_id, credential_id],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE passkeys SET last_used_at = ?1 WHERE user_id = ?2 AND credential_id = ?3",
+                params![now, user_id, credential_id],
+            )?;
+        }
+        Ok(())
     }
 
     pub fn webhooks_for_event(&self, event: &str) -> Result<Vec<WebhookTarget>, PanelError> {
@@ -2368,6 +2519,43 @@ mod tests {
         ));
         db.delete_account_package("acme").unwrap();
         assert!(db.delete_package(&custom.id).is_ok());
+    }
+
+    #[test]
+    fn passkey_lifecycle() {
+        let (_dir, db) = temp_db();
+        let user = db
+            .create_user(
+                "admin",
+                "admin@example.com",
+                "Very-Strong-Pass1",
+                Role::Owner,
+            )
+            .unwrap();
+        assert_eq!(db.count_passkeys(&user.id).unwrap(), 0);
+
+        let created = db
+            .create_passkey(&user.id, "Laptop", "credential-1", "{\"cred\":1}")
+            .unwrap();
+        assert_eq!(db.count_passkeys(&user.id).unwrap(), 1);
+        assert_eq!(db.list_passkeys(&user.id).unwrap()[0].name, "Laptop");
+
+        let stored = db.list_passkey_credentials(&user.id).unwrap();
+        assert_eq!(stored[0].credential_id, "credential-1");
+        assert_eq!(stored[0].credential, "{\"cred\":1}");
+
+        db.touch_passkey(&user.id, "credential-1", Some("{\"cred\":2}"))
+            .unwrap();
+        assert!(db.list_passkeys(&user.id).unwrap()[0]
+            .last_used_at
+            .is_some());
+        assert_eq!(
+            db.list_passkey_credentials(&user.id).unwrap()[0].credential,
+            "{\"cred\":2}"
+        );
+
+        assert!(db.delete_passkey(&user.id, &created.id).unwrap());
+        assert_eq!(db.count_passkeys(&user.id).unwrap(), 0);
     }
 
     #[test]

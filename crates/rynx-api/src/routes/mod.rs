@@ -24,6 +24,8 @@ pub mod installer;
 pub mod mail;
 pub mod monitor;
 pub mod packages;
+#[cfg(unix)]
+pub mod passkeys;
 pub mod php;
 pub mod programs;
 pub mod security;
@@ -202,6 +204,24 @@ pub fn router(state: ApiState) -> Router {
             crate::auth::require_auth,
         ));
 
+    #[cfg(unix)]
+    let protected = protected.merge(
+        Router::new()
+            .route(
+                "/api/v1/passkeys",
+                get(passkeys::list).post(passkeys::begin_registration),
+            )
+            .route(
+                "/api/v1/passkeys/finish",
+                post(passkeys::finish_registration),
+            )
+            .route("/api/v1/passkeys/{id}", delete(passkeys::delete))
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                crate::auth::require_auth,
+            )),
+    );
+
     let public = Router::new()
         .route("/api/v1/auth/login", post(session::login))
         .route("/api/v1/auth/verify-2fa", post(session::verify_two_factor))
@@ -213,6 +233,13 @@ pub fn router(state: ApiState) -> Router {
         .route("/api/v1/health", get(system::health))
         .route("/api/v1/meta", get(system::meta))
         .route("/api/v1", get(system::meta));
+
+    #[cfg(unix)]
+    let public = public.merge(
+        Router::new()
+            .route("/api/v1/auth/passkey/begin", post(passkeys::login_begin))
+            .route("/api/v1/auth/passkey/finish", post(passkeys::login_finish)),
+    );
 
     let index = state.cfg.web_root.join("index.html");
     if !index.exists() {

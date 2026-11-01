@@ -36,6 +36,8 @@ pub struct TwoFactorResponse {
     pub challenge: String,
     pub email: String,
     pub expires_in: u64,
+    pub email_sent: bool,
+    pub passkey_available: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -161,6 +163,7 @@ async fn start_two_factor(
     ip: &str,
     headers: &HeaderMap,
 ) -> Result<Response, ApiError> {
+    let passkey_available = state.webauthn.is_some() && state.db.count_passkeys(&user.id)? > 0;
     if state.mailer.is_none() {
         #[cfg(windows)]
         {
@@ -194,7 +197,6 @@ async fn start_two_factor(
     )
     .await
     {
-        state.two_factor.cancel(&challenge);
         tracing::warn!(user = %user.username, error = %err, "two-factor email could not be sent");
         let _ = state.db.record_auth_event(
             &user.username,
@@ -203,9 +205,28 @@ async fn start_two_factor(
             "failure",
             "two_factor_delivery",
         );
-        return Err(ApiError::internal(
-            "the verification code could not be sent by email",
-        ));
+        if !passkey_available {
+            state.two_factor.cancel(&challenge);
+            return Err(ApiError::internal(
+                "the verification code could not be sent by email",
+            ));
+        }
+        let _ = state.db.record_auth_event(
+            &user.username,
+            ip,
+            &user_agent(headers),
+            "pending",
+            "two_factor_required",
+        );
+        return Ok(Json(TwoFactorResponse {
+            two_factor_required: true,
+            challenge,
+            email: masked_email(&user.email),
+            expires_in: 600,
+            email_sent: false,
+            passkey_available,
+        })
+        .into_response());
     }
     let _ = state.db.record_auth_event(
         &user.username,
@@ -227,6 +248,8 @@ async fn start_two_factor(
         challenge,
         email: masked_email(&user.email),
         expires_in: 600,
+        email_sent: true,
+        passkey_available,
     })
     .into_response())
 }
@@ -480,7 +503,7 @@ pub async fn stop_impersonation(
     finish_login(&state, actor, &ip, &headers, None)
 }
 
-fn finish_login(
+pub(crate) fn finish_login(
     state: &ApiState,
     user: UserView,
     ip: &str,
@@ -564,7 +587,7 @@ pub async fn me(
     })
 }
 
-fn user_agent(headers: &HeaderMap) -> String {
+pub(crate) fn user_agent(headers: &HeaderMap) -> String {
     headers
         .get(header::USER_AGENT)
         .and_then(|value| value.to_str().ok())
@@ -602,7 +625,7 @@ fn parse_ip(value: &str) -> Option<String> {
         .map(|ip| ip.to_string())
 }
 
-fn client_ip(
+pub(crate) fn client_ip(
     headers: &HeaderMap,
     connect: Option<&ConnectInfo<SocketAddr>>,
     trust_proxy: bool,

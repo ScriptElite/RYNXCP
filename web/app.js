@@ -432,7 +432,7 @@ function showLoginForm(mode = 'login') {
   if (input) setTimeout(() => input.focus(), 30);
 }
 
-function showTwoFactor(email, challenge) {
+function showTwoFactor(email, challenge, emailSent = true, passkeyAvailable = false) {
   S.twoFactorChallenge = challenge;
   $('#login-form').classList.add('hidden');
   $('#forgot-form').classList.add('hidden');
@@ -440,12 +440,98 @@ function showTwoFactor(email, challenge) {
   $('#twofa-form').classList.remove('hidden');
   const target = $('#twofa-email');
   if (target) target.textContent = email || T('tu email');
+  const hint = $('#twofa-hint');
+  if (hint) {
+    hint.textContent = emailSent
+      ? TF('Introduce el código de 6 cifras enviado a {email}.', { email: email || T('tu email') })
+      : T('No se pudo enviar el código por email. Usa una passkey registrada.');
+  }
+  const passkeyButton = $('#twofa-passkey');
+  if (passkeyButton) {
+    passkeyButton.classList.toggle('hidden', !passkeyAvailable || !webauthnSupported());
+  }
   const input = $('#twofa-form').elements.code;
   if (input) {
     input.value = '';
     setTimeout(() => input.focus(), 30);
   }
   translateUi(document.body);
+}
+
+function webauthnSupported() {
+  return Boolean(
+    window.isSecureContext &&
+      window.PublicKeyCredential &&
+      navigator.credentials &&
+      navigator.credentials.create,
+  );
+}
+
+function base64UrlToBuffer(value) {
+  const normalized = String(value).replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (ch) => ch.charCodeAt(0)).buffer;
+}
+
+function bufferToBase64Url(value) {
+  const bytes = new Uint8Array(value);
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function publicKeyOptions(options) {
+  const publicKey = options.publicKey || options;
+  const prepared = { ...publicKey, challenge: base64UrlToBuffer(publicKey.challenge) };
+  if (prepared.user && prepared.user.id) {
+    prepared.user = { ...prepared.user, id: base64UrlToBuffer(prepared.user.id) };
+  }
+  if (Array.isArray(prepared.excludeCredentials)) {
+    prepared.excludeCredentials = prepared.excludeCredentials.map((item) => ({
+      ...item,
+      id: base64UrlToBuffer(item.id),
+    }));
+  }
+  if (Array.isArray(prepared.allowCredentials)) {
+    prepared.allowCredentials = prepared.allowCredentials.map((item) => ({
+      ...item,
+      id: base64UrlToBuffer(item.id),
+    }));
+  }
+  return prepared;
+}
+
+function registrationCredentialJson(credential) {
+  return {
+    id: credential.id,
+    rawId: bufferToBase64Url(credential.rawId),
+    type: credential.type,
+    response: {
+      attestationObject: bufferToBase64Url(credential.response.attestationObject),
+      clientDataJSON: bufferToBase64Url(credential.response.clientDataJSON),
+    },
+  };
+}
+
+function authenticationCredentialJson(credential) {
+  const response = credential.response;
+  const out = {
+    id: credential.id,
+    rawId: bufferToBase64Url(credential.rawId),
+    type: credential.type,
+    response: {
+      authenticatorData: bufferToBase64Url(response.authenticatorData),
+      clientDataJSON: bufferToBase64Url(response.clientDataJSON),
+      signature: bufferToBase64Url(response.signature),
+    },
+  };
+  if (response.userHandle) {
+    out.response.userHandle = bufferToBase64Url(response.userHandle);
+  }
+  return out;
 }
 
 function showLogin() {
@@ -2574,14 +2660,16 @@ function showCertJob(job, domain, options = {}) {
 /* ---------------- users ---------------- */
 
 async function renderApi() {
-  const [tokensData, sessionsData, webhooksData] = await Promise.all([
+  const [tokensData, sessionsData, webhooksData, passkeysData] = await Promise.all([
     api('/api/v1/tokens'),
     api('/api/v1/sessions'),
     api('/api/v1/webhooks'),
+    api('/api/v1/passkeys').catch(() => ({ passkeys: [], enabled: false })),
   ]);
   const tokens = tokensData.tokens || [];
   const sessions = sessionsData.sessions || [];
   const webhooks = webhooksData.webhooks || [];
+  const passkeys = passkeysData.passkeys || [];
   const tokenRows = tokens.map((token) => [
     td(`<div class="cell-title">${esc(token.name)}</div>`),
     td(esc(fmtDate(token.created_at))),
@@ -2596,6 +2684,12 @@ async function renderApi() {
     td(esc(fmtDate(new Date(session.last_seen * 1000).toISOString()))),
     td(session.current ? '' : btn('Revocar', 'session-revoke', session.id, 'tiny danger'), 'actions'),
   ]);
+  const passkeyRows = passkeys.map((passkey) => [
+    td(`<div class="cell-title">${esc(passkey.name)}</div>`),
+    td(esc(fmtDate(passkey.created_at))),
+    td(passkey.last_used_at ? esc(fmtDate(passkey.last_used_at)) : '<span class="muted">—</span>'),
+    td(btn('Eliminar', 'passkey-delete', passkey.id, 'tiny danger'), 'actions'),
+  ]);
   const webhookRows = webhooks.map((hook) => [
     td(`<div class="cell-title">${esc(hook.name)}</div><div class="cell-sub mono">${esc(hook.url)}</div>`),
     td(`<span class="muted small">${esc((hook.events || []).join(', '))}</span>`),
@@ -2606,6 +2700,13 @@ async function renderApi() {
   $('#view').innerHTML =
     sectionHead('Tokens API', '<button class="btn primary" data-action="token-new">Nuevo token</button>') +
     table(['Nombre', 'Creado', 'Último uso', ''], tokenRows, 'Sin tokens API.') +
+    sectionHead(
+      'Passkeys',
+      passkeysData.enabled
+        ? '<button class="btn primary" data-action="passkey-new">Añadir passkey</button>'
+        : '<span class="muted small">Requiere HTTPS y un dominio público.</span>',
+    ) +
+    table(['Nombre', 'Creada', 'Último uso', ''], passkeyRows, 'Sin passkeys registradas.') +
     sectionHead('Sesiones activas', '<button class="btn ghost" data-action="sessions-revoke-others">Cerrar las demás</button>') +
     table(['', 'IP', 'Dispositivo', 'Creada', 'Último acceso', ''], sessionRows, 'Sin sesiones activas.') +
     sectionHead('Webhooks', '<button class="btn primary" data-action="webhook-new">Nuevo webhook</button>') +
@@ -2626,6 +2727,39 @@ function openTokenModal() {
         T('Token creado'),
         `${T('Token')}: ${result.token}\n\n${T('Guarda este token ahora; no se volverá a mostrar.')}`,
       );
+      await refresh();
+    },
+  });
+}
+
+function openPasskeyModal() {
+  if (!webauthnSupported()) {
+    toast(T('Las passkeys requieren HTTPS'), 'error');
+    return;
+  }
+  openModal({
+    title: 'Añadir passkey',
+    submitLabel: 'Registrar passkey',
+    html: fInput('name', 'Nombre de la passkey', {
+      placeholder: 'Portátil o llave de seguridad',
+      required: true,
+    }),
+    onSubmit: async (form) => {
+      const begin = await api('/api/v1/passkeys', {
+        method: 'POST',
+        body: { name: val(form, 'name').trim() },
+      });
+      const credential = await navigator.credentials.create({
+        publicKey: publicKeyOptions(begin.options),
+      });
+      await api('/api/v1/passkeys/finish', {
+        method: 'POST',
+        body: {
+          flow: begin.flow,
+          credential: registrationCredentialJson(credential),
+        },
+      });
+      toast(T('Passkey registrada'));
       await refresh();
     },
   });
@@ -3175,6 +3309,14 @@ async function handleAction(action, id) {
       if (!confirm(T('¿Cerrar todas las sesiones excepto la actual?'))) return;
       const result = await api('/api/v1/sessions/revoke-others', { method: 'POST' });
       toast(TF('Sesiones cerradas: {count}', { count: result.revoked || 0 }));
+      return refresh();
+    }
+    case 'passkey-new':
+      return openPasskeyModal();
+    case 'passkey-delete': {
+      if (!confirm(T('¿Eliminar esta passkey?'))) return;
+      await api(`/api/v1/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast(T('Passkey eliminada'));
       return refresh();
     }
     case 'webhook-new':
@@ -4227,7 +4369,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       if (data && data.two_factor_required) {
         form.reset();
-        showTwoFactor(data.email, data.challenge);
+        showTwoFactor(data.email, data.challenge, data.email_sent !== false, Boolean(data.passkey_available));
         return;
       }
       S.user = data.user;
@@ -4264,6 +4406,32 @@ document.addEventListener('DOMContentLoaded', () => {
       form.elements.code.value = '';
       form.elements.code.focus();
       toast(err.message, 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $('#twofa-passkey').addEventListener('click', async () => {
+    const button = $('#twofa-passkey');
+    button.disabled = true;
+    try {
+      const begin = await publicPost('/api/v1/auth/passkey/begin', {
+        challenge: S.twoFactorChallenge,
+      });
+      const credential = await navigator.credentials.get({
+        publicKey: publicKeyOptions(begin.options),
+      });
+      const data = await publicPost('/api/v1/auth/passkey/finish', {
+        flow: begin.flow,
+        credential: authenticationCredentialJson(credential),
+      });
+      S.user = data.user;
+      S.csrf = data.csrf_token;
+      S.impersonatedBy = data.impersonated_by || null;
+      S.twoFactorChallenge = null;
+      enterApp();
+    } catch (err) {
+      toast(err && err.name === 'NotAllowedError' ? T('No se pudo usar la passkey') : err.message, 'error');
     } finally {
       button.disabled = false;
     }

@@ -74,6 +74,23 @@ impl TwoFactor {
         })
     }
 
+    pub fn consume(&self, token: &str) -> Result<UserView, VerifyError> {
+        let Ok(mut challenges) = self.challenges.lock() else {
+            return Err(VerifyError::NotFound);
+        };
+        let now = now_secs();
+        let Some(challenge) = challenges.get(token) else {
+            return Err(VerifyError::NotFound);
+        };
+        if challenge.expires_at <= now {
+            challenges.remove(token);
+            return Err(VerifyError::Expired);
+        }
+        let user = challenge.user.clone();
+        challenges.remove(token);
+        Ok(user)
+    }
+
     pub fn verify(&self, token: &str, code: &str) -> Result<UserView, VerifyError> {
         let Ok(mut challenges) = self.challenges.lock() else {
             return Err(VerifyError::NotFound);
@@ -132,6 +149,14 @@ mod tests {
             otp.verify(&token, &code),
             Err(VerifyError::NotFound)
         ));
+    }
+
+    #[test]
+    fn consumed_challenge_is_single_use() {
+        let otp = TwoFactor::default();
+        let (token, _) = otp.issue(user());
+        assert_eq!(otp.consume(&token).unwrap().username, "admin");
+        assert!(matches!(otp.consume(&token), Err(VerifyError::NotFound)));
     }
 
     #[test]

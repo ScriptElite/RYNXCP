@@ -91,6 +91,8 @@ async fn main() -> Result<()> {
         installer_jobs: rynx_api::installer::new_store(),
         mailer,
         two_factor: Arc::new(Default::default()),
+        webauthn: rynx_api::webauthn::build(&cfg),
+        passkey_flows: Arc::new(Default::default()),
         agent_lock: Arc::new(tokio::sync::Mutex::new(())),
         identity_lock: Arc::new(tokio::sync::Mutex::new(())),
     };

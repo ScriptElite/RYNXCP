@@ -24,8 +24,9 @@ There are two ways to authenticate.
 ### Browser session
 
 `POST /api/v1/auth/login` with a username and password creates a session
-cookie. When SMTP is configured, the response asks for an email code and the
-session is only created after `POST /api/v1/auth/verify-2fa`.
+cookie. When SMTP is configured, the response asks for a second factor and the
+session is only created after `POST /api/v1/auth/verify-2fa` or the WebAuthn
+passkey flow. See [passkeys.md](passkeys.md).
 
 Mutating requests made with a session cookie must also send the
 `x-csrf-token` header returned by login or `GET /api/v1/auth/me`.
@@ -79,6 +80,24 @@ that can perform the task. Revoke tokens from the **API** view or with
 Always use HTTPS and keep tokens out of logs, shell history and repositories.
 
 ## Common examples
+
+### Passkeys
+
+Passkey management uses the browser WebAuthn API:
+
+```text
+GET|POST /api/v1/passkeys             list or begin registration
+POST     /api/v1/passkeys/finish      complete registration
+DELETE   /api/v1/passkeys/{id}
+
+POST     /api/v1/auth/passkey/begin   begin a login assertion
+POST     /api/v1/auth/passkey/finish  complete a login assertion
+```
+
+Registration requires a normal authenticated session. Login uses the challenge
+returned by `/auth/login` and is only available when the user has a passkey and
+the panel is served over HTTPS. Full browser flow and payload shapes are in
+[passkeys.md](passkeys.md).
 
 ### List websites
 

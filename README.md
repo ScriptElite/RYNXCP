@@ -72,7 +72,7 @@ reconciliation engine and UI are original.
 | Console | Closed-list privileged actions with output and audit trail |
 | Programs | Installed software, live service state, restart/stop controls, pending updates and upgrade button |
 | Users | owner/admin/operator/viewer roles, audited impersonation and revocation |
-| API | Personal API tokens (Bearer), active sessions and signed outbound webhooks |
+| API | Personal API tokens (Bearer), active sessions, signed outbound webhooks and WebAuthn passkeys |
 | Logs | Per-site Nginx access/error logs and PHP error log tail |
 | Mail queue | Inspect, flush, hold and delete Postfix queue messages |
 | Packages | Reusable plans with enforced website+app, alias, mail, database, FTP and backup limits, templates and a seeded editable default |
@@ -328,6 +328,11 @@ Compromising the web API does not grant direct write access to hosting state.
   Users can list and revoke their active sessions from the **API** view.
 - **API tokens**: personal `rynx_…` Bearer tokens stored only as SHA-256 hashes,
   revocable from the **API** view; mutations do not require a CSRF header.
+- **Passkeys**: per-user WebAuthn credentials saved as an additional login
+  factor. After the password check, users with a registered passkey can finish
+  login with Face ID, Touch ID, Windows Hello, a phone or a security key instead
+  of the email code. Passkeys require HTTPS, a public domain and a browser with
+  WebAuthn support; the relying-party ID comes from `public_url`.
 - **Webhooks**: per-user HTTPS endpoints for `agent.alert`,
   `certificate.issued`, `certificate.failed`, `backup.created` and
   `website.cloned`. Deliveries are JSON POSTs signed with HMAC-SHA256 in
@@ -930,7 +935,8 @@ route requires an authenticated session or a personal API token
 (`Authorization: Bearer rynx_...`). Browser-session mutations require
 `x-csrf-token`; Bearer requests do not.
 
-See [docs/api.md](docs/api.md) for authentication and `curl` examples, and
+See [docs/api.md](docs/api.md) for authentication and `curl` examples,
+[docs/passkeys.md](docs/passkeys.md) for WebAuthn setup, and
 [docs/webhooks.md](docs/webhooks.md) for event payloads and HMAC verification.
 
 ```
@@ -939,6 +945,7 @@ GET    /api/v1
 
 POST   /api/v1/auth/login
 POST   /api/v1/auth/verify-2fa
+POST   /api/v1/auth/passkey/begin  POST /api/v1/auth/passkey/finish
 POST   /api/v1/auth/forgot-password
 POST   /api/v1/auth/reset-password
 POST   /api/v1/auth/logout
@@ -946,6 +953,8 @@ GET    /api/v1/auth/me
 PUT    /api/v1/auth/locale
 GET|POST /api/v1/tokens             DELETE /api/v1/tokens/{id}
 GET|POST /api/v1/webhooks           DELETE /api/v1/webhooks/{id}
+GET|POST /api/v1/passkeys           POST /api/v1/passkeys/finish
+DELETE /api/v1/passkeys/{id}
 GET    /api/v1/sessions             DELETE /api/v1/sessions/{id}
 POST   /api/v1/sessions/revoke-others
 POST   /api/v1/auth/stop-impersonation

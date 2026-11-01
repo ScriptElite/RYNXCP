@@ -500,7 +500,7 @@ apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold
 log "Installing base tooling"
 apt-get install -y --no-install-recommends \
   ca-certificates curl gnupg lsb-release apt-transport-https \
-  software-properties-common build-essential pkg-config git openssl \
+  software-properties-common build-essential pkg-config git openssl libssl-dev \
   nftables fail2ban logrotate unattended-upgrades
 
 # ---------------------------------------------------------------------------
