@@ -113,6 +113,23 @@ try {
     if ($phpVersions.kind -ne 'php_versions' -or $phpVersions.versions -notcontains '8.5') {
         throw 'installed PHP versions are missing'
     }
+    Write-Host '==> API tokens and sessions'
+    $tokenResult = PostJson '/api/v1/tokens' @{ name = 'smoke' }
+    $bearer = @{ Authorization = "Bearer $($tokenResult.token)" }
+    $meToken = Invoke-RestMethod -Uri "$base/api/v1/auth/me" -Headers $bearer
+    if ($meToken.user.username -ne 'admin') { throw 'bearer token did not authenticate' }
+    $null = RequestJson 'DELETE' "/api/v1/tokens/$($tokenResult.api_token.id)"
+    ExpectStatus 401 { Invoke-RestMethod -Uri "$base/api/v1/auth/me" -Headers $bearer }
+
+    $second = Invoke-RestMethod -Uri "$base/api/v1/auth/login" -Method Post `
+        -ContentType 'application/json' -SessionVariable sess2 `
+        -Body (@{ username = 'admin'; password = 'Sup3r-Secret-Pass' } | ConvertTo-Json)
+    $sessions = RequestJson 'GET' '/api/v1/sessions'
+    $other = @($sessions.sessions) | Where-Object { -not $_.current } | Select-Object -First 1
+    if (-not $other) { throw 'second session was not listed' }
+    $null = RequestJson 'DELETE' "/api/v1/sessions/$($other.id)"
+    ExpectStatus 401 { Invoke-RestMethod -Uri "$base/api/v1/auth/me" -WebSession $sess2 }
+
     $seedPackages = @(RequestJson 'GET' '/api/v1/packages')
     if ($seedPackages.Count -lt 1 -or -not $seedPackages[0].is_default) {
         throw 'the default package was not seeded'

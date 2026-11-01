@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
 
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL REFERENCES panel_users(id) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    token_hash   TEXT NOT NULL UNIQUE,
+    created_at   TEXT NOT NULL,
+    last_used_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id);
+
 CREATE TABLE IF NOT EXISTS password_resets (
     token_hash  TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL REFERENCES panel_users(id) ON DELETE CASCADE,
@@ -186,6 +196,23 @@ pub struct UserView {
     pub account: Option<String>,
     /// Preferred panel/email language.
     pub locale: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ApiTokenView {
+    pub id: String,
+    pub name: String,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SessionView {
+    pub id: String,
+    pub created_at: String,
+    pub last_seen: i64,
+    pub ip: String,
+    pub user_agent: String,
 }
 
 #[derive(Debug, Clone)]
@@ -757,6 +784,131 @@ impl PanelDb {
             params![username, locale, now_rfc3339()],
         )?;
         Ok(())
+    }
+
+    pub fn create_api_token(
+        &self,
+        user_id: &str,
+        name: &str,
+    ) -> Result<(String, ApiTokenView), PanelError> {
+        let name = name.trim();
+        if name.is_empty() || name.len() > 100 || name.chars().any(|ch| ch.is_control()) {
+            return Err(PanelError::Validation("invalid token name".into()));
+        }
+        let token = format!("rynx_{}", random_hex(32));
+        let id = uuid::Uuid::new_v4().to_string();
+        let created_at = now_rfc3339();
+        let conn = self.conn()?;
+        conn.execute(
+            "INSERT INTO api_tokens (id, user_id, name, token_hash, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![id, user_id, name, sha256_hex(token.as_bytes()), created_at],
+        )?;
+        Ok((
+            token,
+            ApiTokenView {
+                id,
+                name: name.to_string(),
+                created_at,
+                last_used_at: None,
+            },
+        ))
+    }
+
+    pub fn list_api_tokens(&self, user_id: &str) -> Result<Vec<ApiTokenView>, PanelError> {
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, created_at, last_used_at \
+             FROM api_tokens WHERE user_id = ?1 ORDER BY created_at DESC",
+        )?;
+        let rows = stmt.query_map(params![user_id], |row| {
+            Ok(ApiTokenView {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                created_at: row.get(2)?,
+                last_used_at: row.get(3)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
+    pub fn revoke_api_token(&self, user_id: &str, id: &str) -> Result<bool, PanelError> {
+        let conn = self.conn()?;
+        let changed = conn.execute(
+            "DELETE FROM api_tokens WHERE id = ?1 AND user_id = ?2",
+            params![id, user_id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn authenticate_api_token(&self, token: &str) -> Result<Option<UserView>, PanelError> {
+        if token.len() > 200 {
+            return Ok(None);
+        }
+        let conn = self.conn()?;
+        let hash = sha256_hex(token.as_bytes());
+        let user = conn
+            .query_row(
+                "SELECT u.id, u.username, u.email, u.role, u.active, u.created_at, \
+                        u.updated_at, u.account, u.locale \
+                 FROM api_tokens t JOIN panel_users u ON u.id = t.user_id \
+                 WHERE t.token_hash = ?1 AND u.active = 1",
+                params![hash],
+                map_user,
+            )
+            .optional()?;
+        if user.is_some() {
+            let _ = conn.execute(
+                "UPDATE api_tokens SET last_used_at = ?2 WHERE token_hash = ?1",
+                params![hash, now_rfc3339()],
+            );
+        }
+        Ok(user)
+    }
+
+    pub fn list_user_sessions(&self, user_id: &str) -> Result<Vec<SessionView>, PanelError> {
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT token_hash, created_at, last_seen, ip, user_agent \
+             FROM sessions WHERE user_id = ?1 AND expires_at > ?2 \
+             ORDER BY last_seen DESC",
+        )?;
+        let rows = stmt.query_map(params![user_id, now_unix()], |row| {
+            Ok(SessionView {
+                id: row.get(0)?,
+                created_at: row.get(1)?,
+                last_seen: row.get(2)?,
+                ip: row.get(3)?,
+                user_agent: row.get(4)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
+    pub fn revoke_user_session(&self, user_id: &str, id: &str) -> Result<bool, PanelError> {
+        let conn = self.conn()?;
+        let changed = conn.execute(
+            "DELETE FROM sessions WHERE token_hash = ?1 AND user_id = ?2",
+            params![id, user_id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn revoke_other_sessions(&self, user_id: &str, current: &str) -> Result<usize, PanelError> {
+        let conn = self.conn()?;
+        let changed = conn.execute(
+            "DELETE FROM sessions WHERE user_id = ?1 AND token_hash <> ?2",
+            params![user_id, current],
+        )?;
+        Ok(changed)
     }
 
     pub fn set_active(&self, username: &str, active: bool) -> Result<(), PanelError> {

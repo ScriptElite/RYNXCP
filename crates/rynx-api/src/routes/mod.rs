@@ -30,6 +30,7 @@ pub mod security;
 pub mod session;
 pub mod ssh;
 pub mod system;
+pub mod tokens;
 pub mod users;
 pub mod websites;
 
@@ -45,6 +46,14 @@ pub fn router(state: ApiState) -> Router {
         .route(
             "/api/v1/auth/stop-impersonation",
             post(session::stop_impersonation),
+        )
+        .route("/api/v1/tokens", get(tokens::list).post(tokens::create))
+        .route("/api/v1/tokens/{id}", delete(tokens::revoke))
+        .route("/api/v1/sessions", get(tokens::sessions))
+        .route("/api/v1/sessions/{id}", delete(tokens::revoke_session))
+        .route(
+            "/api/v1/sessions/revoke-others",
+            post(tokens::revoke_other_sessions),
         )
         .route("/api/v1/users", get(users::list).post(users::create))
         .route(

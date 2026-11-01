@@ -61,6 +61,7 @@ const NAV_ITEMS = [
   { id: 'cron', label: 'Cron', group: 'Operación' },
   { id: 'ssh', label: 'SSH', group: 'Operación', requiresSsh: true },
   { id: 'monitor', label: 'Monitor', group: 'Operación' },
+  { id: 'api', label: 'API', group: 'Administración' },
   { id: 'users', label: 'Usuarios', group: 'Administración', admin: true },
   { id: 'packages', label: 'Paquetes', group: 'Administración', admin: true },
   { id: 'security', label: 'Seguridad', group: 'Administración', admin: true },
@@ -90,6 +91,7 @@ const NAV_ICON_PATHS = {
   cron: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   ssh: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><circle cx="16" cy="10" r="1.6"/><path d="m16 11.6 2.2 2.4"/>',
   monitor: '<path d="M3 12h4l2-6 3 12 2-6h7"/>',
+  api: '<circle cx="8" cy="12" r="3"/><path d="M11 12h9"/><path d="M17 12v3"/><path d="M20 12v2"/>',
   users: '<circle cx="9" cy="8" r="3"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="2"/><path d="M16 14a5 5 0 0 1 6 4"/>',
   packages: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>',
   security: '<path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6z"/><path d="m9 12 2 2 4-4"/>',
@@ -130,6 +132,7 @@ const TITLES = {
   php: ['PHP-FPM', 'Pools por cuenta con open_basedir y funciones restringidas'],
   mail: ['Correo', 'Dominios, buzones, webmail y seguridad DNS'],
   ssl: ['Certificados', 'Emisión y estado de certificados Let\'s Encrypt'],
+  api: ['API', 'Tokens de API y sesiones activas'],
   users: ['Usuarios del panel', 'Acceso al panel con roles y sesiones revocables'],
   packages: ['Paquetes', 'Planes de hosting y límites de recursos; 0 significa sin límite'],
   audit: ['Auditoría', 'Registro append-only encadenado por SHA-256'],
@@ -527,6 +530,7 @@ const SCOPED_NAV = new Set([
   'backups',
   'cron',
   'ssh',
+  'api',
 ]);
 
 function buildNav() {
@@ -590,6 +594,7 @@ const renderers = {
   installer: renderInstaller,
   php: renderPhp,
   ssl: renderSsl,
+  api: renderApi,
   users: renderUsers,
   packages: renderPackages,
   audit: renderAudit,
@@ -2518,6 +2523,53 @@ function showCertJob(job, domain, options = {}) {
 
 /* ---------------- users ---------------- */
 
+async function renderApi() {
+  const [tokensData, sessionsData] = await Promise.all([
+    api('/api/v1/tokens'),
+    api('/api/v1/sessions'),
+  ]);
+  const tokens = tokensData.tokens || [];
+  const sessions = sessionsData.sessions || [];
+  const tokenRows = tokens.map((token) => [
+    td(`<div class="cell-title">${esc(token.name)}</div>`),
+    td(esc(fmtDate(token.created_at))),
+    td(token.last_used_at ? esc(fmtDate(token.last_used_at)) : '<span class="muted">—</span>'),
+    td(btn('Revocar', 'token-revoke', token.id, 'tiny danger'), 'actions'),
+  ]);
+  const sessionRows = sessions.map((session) => [
+    td(`${session.current ? badge('actual', 'ok') : badge('activa', '')}`),
+    td(session.ip ? `<span class="mono small">${esc(session.ip)}</span>` : '<span class="muted">—</span>'),
+    td(`<span class="muted small">${esc(session.user_agent || '—')}</span>`),
+    td(esc(fmtDate(session.created_at))),
+    td(esc(fmtDate(new Date(session.last_seen * 1000).toISOString()))),
+    td(session.current ? '' : btn('Revocar', 'session-revoke', session.id, 'tiny danger'), 'actions'),
+  ]);
+  $('#view').innerHTML =
+    sectionHead('Tokens API', '<button class="btn primary" data-action="token-new">Nuevo token</button>') +
+    table(['Nombre', 'Creado', 'Último uso', ''], tokenRows, 'Sin tokens API.') +
+    sectionHead('Sesiones activas', '<button class="btn ghost" data-action="sessions-revoke-others">Cerrar las demás</button>') +
+    table(['', 'IP', 'Dispositivo', 'Creada', 'Último acceso', ''], sessionRows, 'Sin sesiones activas.');
+}
+
+function openTokenModal() {
+  openModal({
+    title: 'Nuevo token API',
+    submitLabel: 'Crear token',
+    html: fInput('name', 'Nombre del token', { placeholder: 'integracion-ci', required: true }),
+    onSubmit: async (form) => {
+      const result = await api('/api/v1/tokens', {
+        method: 'POST',
+        body: { name: val(form, 'name').trim() },
+      });
+      showOutput(
+        T('Token creado'),
+        `${T('Token')}: ${result.token}\n\n${T('Guarda este token ahora; no se volverá a mostrar.')}`,
+      );
+      await refresh();
+    },
+  });
+}
+
 async function renderUsers() {
   await loadList('users');
   const rows = S.data.users.map((user) => {
@@ -2998,6 +3050,26 @@ async function handleAction(action, id) {
         body: { domain: id, email, staging: false },
       });
       return showCertJob(job, id, { email, staging: false });
+    }
+    case 'token-new':
+      return openTokenModal();
+    case 'token-revoke': {
+      if (!confirm(T('¿Revocar este token API?'))) return;
+      await api(`/api/v1/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast('Token API revocado');
+      return refresh();
+    }
+    case 'session-revoke': {
+      if (!confirm(T('¿Revocar esta sesión?'))) return;
+      await api(`/api/v1/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast('Sesión revocada');
+      return refresh();
+    }
+    case 'sessions-revoke-others': {
+      if (!confirm(T('¿Cerrar todas las sesiones excepto la actual?'))) return;
+      const result = await api('/api/v1/sessions/revoke-others', { method: 'POST' });
+      toast(TF('Sesiones cerradas: {count}', { count: result.revoked || 0 }));
+      return refresh();
     }
     case 'user-new':
       return openUserModal();

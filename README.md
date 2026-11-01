@@ -72,6 +72,7 @@ reconciliation engine and UI are original.
 | Console | Closed-list privileged actions with output and audit trail |
 | Programs | Installed software, live service state, restart/stop controls, pending updates and upgrade button |
 | Users | owner/admin/operator/viewer roles, audited impersonation and revocation |
+| API | Personal API tokens (Bearer) and active session management |
 | Packages | Reusable plans with enforced website+app, alias, mail, database, FTP and backup limits, templates and a seeded editable default |
 | Languages | Ten UI languages, per-user saved locale and localized system email |
 
@@ -322,6 +323,9 @@ Compromising the web API does not grant direct write access to hosting state.
   failure; zones are checked with `named-checkzone`.
 - **Sessions**: opaque tokens; only their SHA-256 is stored. Cookie is `HttpOnly`,
   `SameSite=Strict`, `Secure` in production, with absolute and idle expiry.
+  Users can list and revoke their active sessions from the **API** view.
+- **API tokens**: personal `rynx_…` Bearer tokens stored only as SHA-256 hashes,
+  revocable from the **API** view; mutations do not require a CSRF header.
 - **Email two-factor authentication**: when SMTP is configured, login sends a
   single-use six-digit code valid for 10 minutes (five attempts per challenge).
   The code email uses the user's saved language.
@@ -927,6 +931,9 @@ POST   /api/v1/auth/reset-password
 POST   /api/v1/auth/logout
 GET    /api/v1/auth/me
 PUT    /api/v1/auth/locale
+GET|POST /api/v1/tokens             DELETE /api/v1/tokens/{id}
+GET    /api/v1/sessions             DELETE /api/v1/sessions/{id}
+POST   /api/v1/sessions/revoke-others
 POST   /api/v1/auth/stop-impersonation
 POST   /api/v1/users/{username}/impersonate
 

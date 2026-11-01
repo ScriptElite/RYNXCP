@@ -91,6 +91,26 @@ pub async fn require_auth(
     mut request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
+    if let Some(raw) = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+    {
+        let user = state
+            .db
+            .authenticate_api_token(raw.trim())
+            .map_err(ApiError::from)?
+            .ok_or(ApiError::Unauthorized)?;
+        request.extensions_mut().insert(AuthUser {
+            user,
+            csrf_token: String::new(),
+            session_token: String::new(),
+            impersonated_by: None,
+        });
+        return Ok(next.run(request).await);
+    }
+
     let token = cookie_value(request.headers(), SESSION_COOKIE).ok_or(ApiError::Unauthorized)?;
     let session = state
         .db
