@@ -26,7 +26,7 @@ use crate::state::ApiState;
 
 const JOB_TTL: Duration = Duration::from_secs(30 * 60);
 const RUNNING_TTL: Duration = Duration::from_secs(2 * 60 * 60);
-const MAX_ARCHIVE: usize = 64 * 1024 * 1024;
+const MAX_ARCHIVE: usize = 128 * 1024 * 1024;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct InstallRequest {
@@ -155,66 +155,58 @@ pub async fn start(
     };
     crate::limits::check_website(state, &auth.user.username, &website).await?;
 
-    let (title, admin_user, admin_email, admin_password) = match app {
-        InstallerApp::Wordpress => {
-            let title = request.title.trim();
-            let title = if title.is_empty() {
-                domain.clone()
-            } else {
-                title.to_string()
-            };
-            let admin_user = request.admin_user.trim();
-            let admin_user = if admin_user.is_empty() {
-                "admin".to_string()
-            } else {
-                admin_user.to_string()
-            };
-            if admin_user.len() > 60
-                || !admin_user
-                    .chars()
-                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | '@'))
-            {
-                return Err(ApiError::BadRequest(
-                    "invalid WordPress administrator user".into(),
-                ));
-            }
-            let admin_email = request.admin_email.trim();
-            let admin_email = if admin_email.is_empty() {
-                auth.user.email.clone()
-            } else {
-                admin_email.to_string()
-            };
-            rynx_core::validate::validate_email(&admin_email)
-                .map_err(|err| ApiError::BadRequest(err.to_string()))?;
-            let generated = if request.admin_password.trim().is_empty() {
-                Some(random_password(20))
-            } else {
-                None
-            };
-            let password = generated
-                .clone()
-                .unwrap_or_else(|| request.admin_password.trim().to_string());
-            if password.len() < 8
-                || password.len() > 128
-                || password.chars().any(|ch| ch.is_control())
-            {
-                return Err(ApiError::BadRequest(
-                    "the WordPress administrator password must be 8-128 printable characters"
-                        .into(),
-                ));
-            }
-            (title, admin_user, admin_email, generated.or(Some(password)))
+    let title = if request.title.trim().is_empty() {
+        domain.clone()
+    } else {
+        request.title.trim().to_string()
+    };
+    let (admin_user, admin_email, admin_password) = if app.needs_admin() {
+        let mut admin_user = request.admin_user.trim().to_string();
+        if admin_user.is_empty() {
+            admin_user = "admin".into();
         }
-        InstallerApp::Laravel => (
-            if request.title.trim().is_empty() {
-                domain.clone()
-            } else {
-                request.title.trim().to_string()
-            },
-            String::new(),
-            String::new(),
-            None,
-        ),
+        if app == InstallerApp::Grav {
+            admin_user = admin_user.to_ascii_lowercase();
+        }
+        let user_max = if app == InstallerApp::Grav { 16 } else { 60 };
+        if admin_user.len() < 3
+            || admin_user.len() > user_max
+            || !admin_user
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | '@'))
+        {
+            return Err(ApiError::BadRequest(
+                "invalid application administrator user".into(),
+            ));
+        }
+        let admin_email = request.admin_email.trim();
+        let admin_email = if admin_email.is_empty() {
+            auth.user.email.clone()
+        } else {
+            admin_email.to_string()
+        };
+        rynx_core::validate::validate_email(&admin_email)
+            .map_err(|err| ApiError::BadRequest(err.to_string()))?;
+        let generated = if request.admin_password.trim().is_empty() {
+            Some(random_password(20))
+        } else {
+            None
+        };
+        let password = generated
+            .clone()
+            .unwrap_or_else(|| request.admin_password.trim().to_string());
+        let password_min = if app == InstallerApp::Joomla { 12 } else { 8 };
+        if password.len() < password_min
+            || password.len() > 128
+            || password.chars().any(|ch| ch.is_control())
+        {
+            return Err(ApiError::BadRequest(format!(
+                "the application administrator password must be {password_min}-128 printable characters"
+            )));
+        }
+        (admin_user, admin_email, generated.or(Some(password)))
+    } else {
+        (String::new(), String::new(), None)
     };
 
     let prepared = Prepared {
@@ -245,10 +237,8 @@ pub async fn start(
         db_user: None,
         db_password: None,
         db_host: None,
-        admin_user: (app == InstallerApp::Wordpress).then(|| prepared.admin_user.clone()),
-        admin_password: (app == InstallerApp::Wordpress)
-            .then(|| admin_password.clone())
-            .flatten(),
+        admin_user: app.needs_admin().then(|| prepared.admin_user.clone()),
+        admin_password: app.needs_admin().then(|| admin_password.clone()).flatten(),
     };
     {
         let mut jobs = state.installer_jobs.lock().await;
@@ -308,34 +298,41 @@ async fn run_job(state: ApiState, id: String, prepared: Prepared, actor: String)
             .map_err(|err| err.to_string())?;
         created_website = true;
 
-        set_step(&state, &id, "creating database", "creating the database").await;
-        crate::limits::check_database(&state, &actor, &domain)
-            .await
-            .map_err(|err| err.to_string())?;
-        let response = state
-            .daemon
-            .call(
-                Request::DatabaseCreate {
-                    domain: domain.clone(),
-                    name: format!("{}_{}", prepared.app.as_str(), random_hex(2)),
-                },
-                &actor,
-            )
-            .await
-            .map_err(|err| err.to_string())?;
-        let DaemonResponse::Database { database: created } = response else {
-            return Err("the daemon did not return the created database".to_string());
-        };
-        database = Some(created);
-        let db = database.clone().expect("database was just created");
+        if prepared.app.needs_database() {
+            set_step(&state, &id, "creating database", "creating the database").await;
+            crate::limits::check_database(&state, &actor, &domain)
+                .await
+                .map_err(|err| err.to_string())?;
+            let response = state
+                .daemon
+                .call(
+                    Request::DatabaseCreate {
+                        domain: domain.clone(),
+                        name: format!("{}_{}", prepared.app.as_str(), random_hex(2)),
+                    },
+                    &actor,
+                )
+                .await
+                .map_err(|err| err.to_string())?;
+            let DaemonResponse::Database { database: created } = response else {
+                return Err("the daemon did not return the created database".to_string());
+            };
+            database = Some(created);
+        }
 
-        let staged = if prepared.app == InstallerApp::Wordpress {
-            set_step(&state, &id, "downloading", "downloading WordPress").await;
-            let staged = download_wordpress(&state).await?;
+        let staged = if prepared.app == InstallerApp::Laravel {
+            None
+        } else {
+            set_step(
+                &state,
+                &id,
+                "downloading",
+                &format!("downloading {}", prepared.app.as_str()),
+            )
+            .await;
+            let staged = download_archive(&state, prepared.app).await?;
             archive_path = Some(PathBuf::from(&staged.0));
             Some(staged)
-        } else {
-            None
         };
 
         set_step(&state, &id, "installing", "installing the application").await;
@@ -346,9 +343,18 @@ async fn run_job(state: ApiState, id: String, prepared: Prepared, actor: String)
             docroot: prepared.website.docroot.clone(),
             php_version: prepared.php_version.clone(),
             tls: prepared.tls,
-            database: db.username.clone(),
-            db_user: db.username.clone(),
-            db_password: db.password.clone(),
+            database: database
+                .as_ref()
+                .map(|db| db.username.clone())
+                .unwrap_or_default(),
+            db_user: database
+                .as_ref()
+                .map(|db| db.username.clone())
+                .unwrap_or_default(),
+            db_password: database
+                .as_ref()
+                .map(|db| db.password.clone())
+                .unwrap_or_default(),
             db_host: "localhost".into(),
             site_title: prepared.title.clone(),
             admin_user: prepared.admin_user.clone(),
@@ -442,7 +448,29 @@ async fn set_step(state: &ApiState, id: &str, status: &str, message: &str) {
     }
 }
 
-async fn download_wordpress(state: &ApiState) -> Result<(String, u64, String), String> {
+async fn download_archive(
+    state: &ApiState,
+    app: InstallerApp,
+) -> Result<(String, u64, String), String> {
+    let (url, expected_sha256, extension) = match app {
+        InstallerApp::Wordpress => ("https://wordpress.org/latest.tar.gz", None, "tar.gz"),
+        InstallerApp::Joomla => (
+            "https://github.com/joomla/joomla-cms/releases/download/6.2.0/Joomla_6.2.0-Stable-Full_Package.tar.gz",
+            Some("f7a4c3962c4a8682f5847ea9d47d2848f6eb475109805935c9e19a5c6511829d"),
+            "tar.gz",
+        ),
+        InstallerApp::Grav => (
+            "https://github.com/getgrav/grav/releases/download/2.2.21/grav-admin-v2.2.21.zip",
+            Some("948f24ae4fe2ab146197148319ed8a7efa9f9ca0159b2efc3373cde110ac9b53"),
+            "zip",
+        ),
+        InstallerApp::Mediawiki => (
+            "https://releases.wikimedia.org/mediawiki/1.45/mediawiki-1.45.3.tar.gz",
+            Some("5ea8c1f321c9f8dba4d1ac1e4eca1827fb13519d4a2190e239f51432058a4269"),
+            "tar.gz",
+        ),
+        InstallerApp::Laravel => return Err("Laravel does not use an archive".into()),
+    };
     let dir = &state.cfg.installer_staging;
     std::fs::create_dir_all(dir).map_err(|err| {
         format!(
@@ -456,54 +484,55 @@ async fn download_wordpress(state: &ApiState) -> Result<(String, u64, String), S
         let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o750));
     }
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(180))
+        .timeout(Duration::from_secs(300))
         .user_agent("RYNXCP installer")
-        .redirect(reqwest::redirect::Policy::custom(|attempt| {
-            let host = attempt.url().host_str().unwrap_or_default();
-            if matches!(
-                host,
-                "wordpress.org" | "www.wordpress.org" | "downloads.wordpress.org"
-            ) {
-                attempt.follow()
-            } else {
-                attempt.stop()
-            }
-        }))
+        .redirect(reqwest::redirect::Policy::limited(5))
         .build()
         .map_err(|err| err.to_string())?;
     let response = client
-        .get("https://wordpress.org/latest.tar.gz")
+        .get(url)
         .send()
         .await
         .map_err(|err| err.to_string())?;
     if !response.status().is_success() {
         return Err(format!(
-            "WordPress download failed with HTTP {}",
+            "{} download failed with HTTP {}",
+            app.as_str(),
             response.status()
         ));
     }
     let bytes = response.bytes().await.map_err(|err| err.to_string())?;
     if bytes.is_empty() || bytes.len() > MAX_ARCHIVE {
-        return Err("the WordPress archive has an invalid size".into());
+        return Err(format!("the {} archive has an invalid size", app.as_str()));
     }
-    let checksum = client
-        .get("https://wordpress.org/latest.tar.gz.sha1")
-        .send()
-        .await
-        .map_err(|err| err.to_string())?
-        .text()
-        .await
-        .map_err(|err| err.to_string())?;
-    let expected = checksum
-        .split_whitespace()
-        .next()
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    let actual = format!("{:x}", sha1::Sha1::digest(&bytes));
-    if expected.is_empty() || expected != actual {
-        return Err("the WordPress archive checksum did not match".into());
+    if let Some(expected) = expected_sha256 {
+        let actual = sha256_hex(&bytes);
+        if actual != expected {
+            return Err(format!(
+                "the {} archive checksum did not match",
+                app.as_str()
+            ));
+        }
+    } else {
+        let checksum = client
+            .get("https://wordpress.org/latest.tar.gz.sha1")
+            .send()
+            .await
+            .map_err(|err| err.to_string())?
+            .text()
+            .await
+            .map_err(|err| err.to_string())?;
+        let expected = checksum
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        let actual = format!("{:x}", sha1::Sha1::digest(&bytes));
+        if expected.is_empty() || expected != actual {
+            return Err("the WordPress archive checksum did not match".into());
+        }
     }
-    let path = dir.join(format!("wordpress-{}.tar.gz", random_hex(12)));
+    let path = dir.join(format!("{}-{}.{}", app.as_str(), random_hex(12), extension));
     std::fs::write(&path, &bytes).map_err(|err| {
         format!(
             "cannot write the installer archive to {}: {err}",
@@ -543,6 +572,27 @@ pub fn catalog() -> serde_json::Value {
                 "app": "laravel",
                 "name": "Laravel",
                 "description": "PHP framework installed with Composer and public/ document root",
+                "php": true,
+                "database": true
+            },
+            {
+                "app": "joomla",
+                "name": "Joomla",
+                "description": "Joomla CMS with database, administrator account and CLI installation",
+                "php": true,
+                "database": true
+            },
+            {
+                "app": "grav",
+                "name": "Grav",
+                "description": "Flat-file CMS with Admin plugin and no database",
+                "php": true,
+                "database": false
+            },
+            {
+                "app": "mediawiki",
+                "name": "MediaWiki",
+                "description": "MediaWiki wiki with database, LocalSettings and administrator account",
                 "php": true,
                 "database": true
             }

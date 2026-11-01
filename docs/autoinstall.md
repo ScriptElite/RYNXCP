@@ -10,7 +10,8 @@ panel stack:
   with managed applications and SSH sessions. Package RAM, CPU and process
   limits are enforced by that slice; the shared pool is kept for webmail and
   panel components.
-- Composer, unzip and WP-CLI for the WordPress/Laravel one-click installers.
+- Composer, unzip and WP-CLI for the WordPress/Laravel/Joomla/Grav/MediaWiki
+  one-click installers.
 - Postfix + Dovecot (2.3/2.4 compatible), quotas, Sieve and Roundcube.
 - ClamAV for SMTP and daily filesystem scans, plus SpamAssassin SMTP scoring.
 - Optional AI agent with local Ollama and/or an explicitly enabled external provider.

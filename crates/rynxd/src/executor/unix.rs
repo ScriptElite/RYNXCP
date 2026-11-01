@@ -416,6 +416,25 @@ fn write_owned_file(path: &Path, data: &[u8], uid: Uid, gid: Gid) -> ExecResult<
     Ok(())
 }
 
+fn stage_installer_archive(home: &Path, archive: &Path, owner: &User) -> ExecResult<PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+    let data = std::fs::read(archive)
+        .map_err(|err| ExecError::Io(format!("cannot read {}: {err}", archive.display())))?;
+    let staged = home.join(format!(".rynxcp-installer-{}.archive", random_hex(8)));
+    {
+        let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
+        std::fs::write(&staged, &data).map_err(|err| {
+            ExecError::Io(format!(
+                "cannot copy the installer archive to {}: {err}",
+                staged.display()
+            ))
+        })?;
+        std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o600))
+            .map_err(|err| ExecError::Io(format!("cannot chmod {}: {err}", staged.display())))?;
+    }
+    Ok(staged)
+}
+
 fn php_single(value: &str) -> String {
     value.replace('\\', "\\\\").replace('\'', "\\'")
 }
@@ -1583,6 +1602,132 @@ impl Executor for RealExecutor {
                 run_as_user(&spec.username, &home, &docroot, &php, &args).await?;
                 if let Some(gid) = web_gid {
                     grant_web_read(&docroot.join("public"), gid)?;
+                }
+            }
+            InstallerApp::Joomla => {
+                let archive = archive.ok_or_else(|| {
+                    ExecError::InvalidInput("the Joomla archive is missing".into())
+                })?;
+                let staged = stage_installer_archive(&home, archive, &owner)?;
+                let args = vec![
+                    "-xzf".to_string(),
+                    staged.display().to_string(),
+                    "-C".to_string(),
+                    docroot.display().to_string(),
+                    "--no-same-owner".to_string(),
+                    "--no-same-permissions".to_string(),
+                ];
+                let extracted = run_as_user(&spec.username, &home, &docroot, "tar", &args).await;
+                let _ = std::fs::remove_file(&staged);
+                extracted?;
+                let args = vec![
+                    "installation/joomla.php".to_string(),
+                    "install".to_string(),
+                    format!("--site-name={}", spec.site_title),
+                    format!("--admin-user={}", spec.site_title),
+                    format!("--admin-username={}", spec.admin_user),
+                    format!("--admin-password={}", spec.admin_password),
+                    format!("--admin-email={}", spec.admin_email),
+                    "--db-type=mysqli".to_string(),
+                    "--db-host=localhost".to_string(),
+                    format!("--db-user={}", spec.db_user),
+                    format!("--db-pass={}", spec.db_password),
+                    format!("--db-name={}", spec.database),
+                    "--db-prefix=rynx_".to_string(),
+                    "--db-encryption=0".to_string(),
+                    "--no-interaction".to_string(),
+                ];
+                run_as_user(&spec.username, &home, &docroot, &php, &args).await?;
+                if let Some(gid) = web_gid {
+                    grant_web_read(&docroot, gid)?;
+                }
+            }
+            InstallerApp::Grav => {
+                let archive = archive
+                    .ok_or_else(|| ExecError::InvalidInput("the Grav archive is missing".into()))?;
+                let staged = stage_installer_archive(&home, archive, &owner)?;
+                let unpack = home.join(format!(".rynxcp-unpack-{}", random_hex(8)));
+                {
+                    let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
+                    std::fs::create_dir_all(&unpack)?;
+                }
+                let args = vec![
+                    "-q".to_string(),
+                    staged.display().to_string(),
+                    "-d".to_string(),
+                    unpack.display().to_string(),
+                ];
+                let extracted = run_as_user(&spec.username, &home, &home, "unzip", &args).await;
+                let _ = std::fs::remove_file(&staged);
+                extracted?;
+                let source = unpack.join("grav-admin");
+                let args = vec![
+                    "-a".to_string(),
+                    format!("{}/.", source.display()),
+                    docroot.display().to_string(),
+                ];
+                let copied = run_as_user(&spec.username, &home, &home, "cp", &args).await;
+                let _ = std::fs::remove_dir_all(&unpack);
+                copied?;
+                let args = vec![
+                    "bin/plugin".to_string(),
+                    "login".to_string(),
+                    "new-user".to_string(),
+                    "-u".to_string(),
+                    spec.admin_user.clone(),
+                    "-p".to_string(),
+                    spec.admin_password.clone(),
+                    "-e".to_string(),
+                    spec.admin_email.clone(),
+                    "-P".to_string(),
+                    "b".to_string(),
+                    "-N".to_string(),
+                    spec.site_title.clone(),
+                    "-t".to_string(),
+                    "Site Administrator".to_string(),
+                ];
+                run_as_user(&spec.username, &home, &docroot, &php, &args).await?;
+                if let Some(gid) = web_gid {
+                    grant_web_read(&docroot, gid)?;
+                }
+            }
+            InstallerApp::Mediawiki => {
+                let archive = archive.ok_or_else(|| {
+                    ExecError::InvalidInput("the MediaWiki archive is missing".into())
+                })?;
+                let staged = stage_installer_archive(&home, archive, &owner)?;
+                let args = vec![
+                    "-xzf".to_string(),
+                    staged.display().to_string(),
+                    "-C".to_string(),
+                    docroot.display().to_string(),
+                    "--strip-components=1".to_string(),
+                    "--no-same-owner".to_string(),
+                    "--no-same-permissions".to_string(),
+                ];
+                let extracted = run_as_user(&spec.username, &home, &docroot, "tar", &args).await;
+                let _ = std::fs::remove_file(&staged);
+                extracted?;
+                let scheme = if spec.tls { "https" } else { "http" };
+                let args = vec![
+                    "maintenance/run.php".to_string(),
+                    "install".to_string(),
+                    "--dbtype=mysql".to_string(),
+                    "--dbserver=localhost".to_string(),
+                    format!("--dbname={}", spec.database),
+                    format!("--dbuser={}", spec.db_user),
+                    format!("--dbpass={}", spec.db_password),
+                    format!("--server={scheme}://{}", spec.domain),
+                    "--scriptpath=".to_string(),
+                    "--lang=en".to_string(),
+                    format!("--pass={}", spec.admin_password),
+                    format!("--confpath={}", docroot.display()),
+                    spec.site_title.clone(),
+                    spec.admin_user.clone(),
+                ];
+                run_as_user(&spec.username, &home, &docroot, &php, &args).await?;
+                if let Some(gid) = web_gid {
+                    grant_web_read(&docroot, gid)?;
                 }
             }
         }

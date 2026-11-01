@@ -128,7 +128,7 @@ const TITLES = {
   websites: ['Sitios web', 'Virtual hosts Nginx con TLS y reverse proxy'],
   files: ['Archivos', 'Gestor de archivos del document root del sitio'],
   apps: ['Aplicaciones', 'Procesos gestionados por systemd (Node, Python, Ruby, Java, .NET, Go)'],
-  installer: ['Instalador', 'WordPress y Laravel en un sitio nuevo con PHP, base de datos y TLS'],
+  installer: ['Instalador', 'WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS'],
   php: ['PHP-FPM', 'Pools por cuenta con open_basedir y funciones restringidas'],
   mail: ['Correo', 'Dominios, buzones, webmail y seguridad DNS'],
   ssl: ['Certificados', 'Emisión y estado de certificados Let\'s Encrypt'],
@@ -2165,7 +2165,7 @@ const INSTALLER_STATUS_LABELS = {
   running: 'En cola',
   'creating website': 'Creando el sitio',
   'creating database': 'Creando la base de datos',
-  downloading: 'Descargando WordPress',
+  downloading: 'Descargando la aplicación',
   installing: 'Instalando la aplicación',
   succeeded: 'Completado',
   failed: 'Error',
@@ -2182,20 +2182,51 @@ async function renderInstaller() {
     {
       app: 'wordpress',
       title: 'WordPress',
-      text: 'Blog o CMS con base de datos, wp-config, sales y cuenta de administrador.',
+      logo: '/assets/logos/wordpress.svg',
+      database: true,
+      admin: true,
+      text: T('Blog o CMS con base de datos, wp-config, sales y cuenta de administrador.'),
     },
     {
       app: 'laravel',
       title: 'Laravel',
-      text: 'Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.',
+      logo: '/assets/logos/laravel.svg',
+      database: true,
+      admin: false,
+      text: T('Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.'),
+    },
+    {
+      app: 'joomla',
+      title: 'Joomla',
+      logo: '/assets/logos/joomla.svg',
+      database: true,
+      admin: true,
+      text: T('CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.'),
+    },
+    {
+      app: 'grav',
+      title: 'Grav',
+      logo: '/assets/logos/grav.svg',
+      database: false,
+      admin: true,
+      text: T('CMS de archivos planos con panel Admin; no necesita base de datos.'),
+    },
+    {
+      app: 'mediawiki',
+      title: 'MediaWiki',
+      logo: '/assets/logos/mediawiki.svg',
+      database: true,
+      admin: true,
+      text: T('Wiki con base de datos, LocalSettings y cuenta de administrador.'),
     },
   ];
   const cards = apps
     .map(
-      (item) => `<div class="card">
+      (item) => `<div class="card installer-card">
+        <img class="installer-logo" src="${item.logo}" alt="" width="48" height="48" loading="lazy">
         <div class="cell-title">${esc(item.title)}</div>
         <p class="muted small">${esc(item.text)}</p>
-        <p class="muted small">Crea un sitio nuevo con PHP-FPM, base de datos y certificado TLS.</p>
+        <p class="muted small">${esc(item.database ? T('Crea un sitio nuevo con PHP-FPM, base de datos y certificado TLS.') : T('Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.'))}</p>
         ${writable ? `<button class="btn primary" data-action="installer-new" data-id="${item.app}">${esc(TF('Instalar {app}', { app: item.title }))}</button>` : ''}
       </div>`,
     )
@@ -2203,8 +2234,7 @@ async function renderInstaller() {
   $('#view').innerHTML =
     sectionHead('Instalador de aplicaciones') +
     `<div class="grid cols-2">${cards}</div>` +
-    `<div class="card"><p class="muted small" style="margin:0">El instalador crea el sitio, el pool PHP, la base de datos
-    y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.</p></div>`;
+    `<div class="card"><p class="muted small" style="margin:0">${esc(T('El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.'))}</p></div>`;
 }
 
 function openInstallerModal(app) {
@@ -2212,22 +2242,30 @@ function openInstallerModal(app) {
     toast('Primero crea una cuenta de hosting', 'error');
     return;
   }
-  const wordpress = app === 'wordpress';
+  const apps = {
+    wordpress: { title: 'WordPress', admin: true },
+    laravel: { title: 'Laravel', admin: false },
+    joomla: { title: 'Joomla', admin: true },
+    grav: { title: 'Grav', admin: true },
+    mediawiki: { title: 'MediaWiki', admin: true },
+  };
+  const selected = apps[app] || apps.wordpress;
+  const needsAdmin = selected.admin;
   const versions = (S.phpVersions && S.phpVersions.length ? S.phpVersions : ['8.5']).map((version) => ({
     value: version,
     label: version,
   }));
   openModal({
-    title: wordpress ? T('Instalar WordPress') : T('Instalar Laravel'),
+    title: TF('Instalar {app}', { app: selected.title }),
     submitLabel: 'Instalar',
     html: `<div class="form-grid">
       ${fSelect('username', 'Cuenta', accountOptions(false), { required: true })}
       ${fInput('domain', 'Dominio', { required: true, placeholder: 'blog.example.com' })}
       ${fSelect('php_version', 'PHP-FPM', versions, { value: versions[0]?.value })}
-      ${fInput('title', wordpress ? 'Título del sitio' : 'Nombre de la aplicación', { value: '' })}
-      ${wordpress ? fInput('admin_user', 'Usuario administrador', { value: 'admin' }) : ''}
-      ${wordpress ? fInput('admin_email', 'Email administrador', { type: 'email', value: S.user.email || '' }) : ''}
-      ${wordpress ? fInput('admin_password', 'Contraseña administrador', { type: 'password', help: 'déjala vacía para generar una segura' }) : ''}
+      ${fInput('title', needsAdmin ? 'Título del sitio' : 'Nombre de la aplicación', { value: '' })}
+      ${needsAdmin ? fInput('admin_user', 'Usuario administrador', { value: 'admin' }) : ''}
+      ${needsAdmin ? fInput('admin_email', 'Email administrador', { type: 'email', value: S.user.email || '' }) : ''}
+      ${needsAdmin ? fInput('admin_password', 'Contraseña administrador', { type: 'password', help: 'déjala vacía para generar una segura' }) : ''}
       <div class="full">${fCheck('tls', 'Solicitar certificado Let\'s Encrypt', true)}</div>
     </div>`,
     onSubmit: async (form) => {
@@ -2237,9 +2275,9 @@ function openInstallerModal(app) {
         app,
         php_version: form.elements.php_version.value,
         title: form.elements.title.value,
-        admin_user: wordpress ? form.elements.admin_user.value : '',
-        admin_email: wordpress ? form.elements.admin_email.value : '',
-        admin_password: wordpress ? form.elements.admin_password.value : '',
+        admin_user: needsAdmin ? form.elements.admin_user.value : '',
+        admin_email: needsAdmin ? form.elements.admin_email.value : '',
+        admin_password: needsAdmin ? form.elements.admin_password.value : '',
         tls: form.elements.tls.checked,
       };
       const job = await api('/api/v1/installer/install', { method: 'POST', body });

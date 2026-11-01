@@ -42,28 +42,38 @@ fn webmail_root() -> &'static str {
 
 const MAX_INSTALLER_ARCHIVE: u64 = 128 * 1024 * 1024;
 
-fn validate_wordpress_fields(spec: &InstallerApplySpec) -> Result<(), WireError> {
+fn validate_installer_admin_fields(spec: &InstallerApplySpec) -> Result<(), WireError> {
     let title = spec.site_title.trim();
     if title.is_empty() || title.len() > 200 || title.chars().any(|ch| ch.is_control()) {
-        return Err(WireError::invalid("invalid WordPress site title"));
+        return Err(WireError::invalid("invalid application site title"));
     }
     let user = spec.admin_user.trim();
-    if user.is_empty()
-        || user.len() > 60
+    let max_user = if spec.app == InstallerApp::Grav {
+        16
+    } else {
+        60
+    };
+    if user.len() < 3
+        || user.len() > max_user
         || !user
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | '@'))
     {
-        return Err(WireError::invalid("invalid WordPress administrator user"));
+        return Err(WireError::invalid("invalid application administrator user"));
     }
     validate_email(&spec.admin_email).map_err(invalid)?;
-    if spec.admin_password.len() < 8
+    let password_min = if spec.app == InstallerApp::Joomla {
+        12
+    } else {
+        8
+    };
+    if spec.admin_password.len() < password_min
         || spec.admin_password.len() > 128
         || spec.admin_password.chars().any(|ch| ch.is_control())
     {
-        return Err(WireError::invalid(
-            "the WordPress administrator password must be 8-128 printable characters",
-        ));
+        return Err(WireError::invalid(format!(
+            "the application administrator password must be {password_min}-128 printable characters"
+        )));
     }
     Ok(())
 }
@@ -1432,12 +1442,13 @@ impl Reconciler {
                 "installer document root must be dedicated to the domain",
             ));
         }
-        if spec.database.len() > 64
-            || !spec
-                .database
-                .chars()
-                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
-            || !spec.database.starts_with(&format!("{}_", spec.username))
+        if spec.app.needs_database()
+            && (spec.database.len() > 64
+                || !spec
+                    .database
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+                || !spec.database.starts_with(&format!("{}_", spec.username)))
         {
             return Err(WireError::invalid(
                 "invalid installer database for this account",
@@ -1461,8 +1472,8 @@ impl Reconciler {
                 "the website does not match the installer target",
             ));
         }
-        if spec.app == InstallerApp::Wordpress {
-            validate_wordpress_fields(&spec)?;
+        if spec.app.needs_admin() {
+            validate_installer_admin_fields(&spec)?;
         }
         let archive = match (spec.archive_path.as_deref(), spec.archive_sha256.as_deref()) {
             (Some(path), Some(sha)) => Some(validate_staged_archive(

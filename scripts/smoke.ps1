@@ -251,6 +251,32 @@ try {
         throw 'installer did not create the database'
     }
 
+    $grav = PostJson '/api/v1/installer/install' @{
+        username = 'acme'; domain = 'grav.example.com'; app = 'grav'
+        php_version = '8.3'; title = 'Smoke Grav'; admin_user = 'admin'
+        admin_email = 'admin@example.com'; admin_password = 'Grav-Smoke-Pass1'; tls = $false
+    }
+    for ($attempt = 0; $attempt -lt 120; $attempt++) {
+        if ($grav.status -eq 'succeeded' -or $grav.status -eq 'failed') { break }
+        Start-Sleep -Milliseconds 250
+        $grav = RequestJson 'GET' "/api/v1/installer/jobs/$($grav.id)"
+    }
+    if ($grav.status -ne 'succeeded') { throw "Grav installer failed: $($grav.message)" }
+    if ($grav.database) { throw 'Grav should not create a database' }
+
+    $joomla = PostJson '/api/v1/installer/install' @{
+        username = 'acme'; domain = 'joomla.example.com'; app = 'joomla'
+        php_version = '8.3'; title = 'Smoke Joomla'; admin_user = 'admin'
+        admin_email = 'admin@example.com'; admin_password = 'Joomla-Smoke-Pass1'; tls = $false
+    }
+    for ($attempt = 0; $attempt -lt 120; $attempt++) {
+        if ($joomla.status -eq 'succeeded' -or $joomla.status -eq 'failed') { break }
+        Start-Sleep -Milliseconds 250
+        $joomla = RequestJson 'GET' "/api/v1/installer/jobs/$($joomla.id)"
+    }
+    if ($joomla.status -ne 'succeeded') { throw "Joomla installer failed: $($joomla.message)" }
+    if (-not $joomla.database) { throw 'Joomla installer did not create the database' }
+
     Write-Host '==> website delete cascade'
     $null = PostJson '/api/v1/mail/domains' @{
         domain = 'laravel.example.com'; username = 'acme'; enabled = $true; catch_all = $null

@@ -712,6 +712,9 @@ pub struct AppView {
 pub enum InstallerApp {
     Wordpress,
     Laravel,
+    Joomla,
+    Grav,
+    Mediawiki,
 }
 
 impl InstallerApp {
@@ -719,6 +722,9 @@ impl InstallerApp {
         match self {
             InstallerApp::Wordpress => "wordpress",
             InstallerApp::Laravel => "laravel",
+            InstallerApp::Joomla => "joomla",
+            InstallerApp::Grav => "grav",
+            InstallerApp::Mediawiki => "mediawiki",
         }
     }
 
@@ -726,8 +732,19 @@ impl InstallerApp {
         match value.trim().to_ascii_lowercase().as_str() {
             "wordpress" => Some(InstallerApp::Wordpress),
             "laravel" => Some(InstallerApp::Laravel),
+            "joomla" => Some(InstallerApp::Joomla),
+            "grav" => Some(InstallerApp::Grav),
+            "mediawiki" => Some(InstallerApp::Mediawiki),
             _ => None,
         }
+    }
+
+    pub fn needs_database(&self) -> bool {
+        !matches!(self, InstallerApp::Grav)
+    }
+
+    pub fn needs_admin(&self) -> bool {
+        !matches!(self, InstallerApp::Laravel)
     }
 }
 

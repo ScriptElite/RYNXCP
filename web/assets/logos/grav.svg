@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Grav">
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1b2a41"/>
+  <path d="M18 22h28v8H27v6h17v8H18z" fill="#5bc0be"/>
+  <text x="46" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#fff">G</text>
+</svg>

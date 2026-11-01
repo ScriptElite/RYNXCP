@@ -580,6 +580,33 @@ impl Executor for SimExecutor {
                     None,
                 )?;
             }
+            InstallerApp::Joomla => {
+                write_managed(
+                    &docroot,
+                    &docroot.join("configuration.php"),
+                    "<?php // joomla\n",
+                    0o640,
+                    None,
+                )?;
+            }
+            InstallerApp::Grav => {
+                write_managed(
+                    &docroot,
+                    &docroot.join("index.php"),
+                    "<?php // grav\n",
+                    0o640,
+                    None,
+                )?;
+            }
+            InstallerApp::Mediawiki => {
+                write_managed(
+                    &docroot,
+                    &docroot.join("LocalSettings.php"),
+                    "<?php // mediawiki\n",
+                    0o640,
+                    None,
+                )?;
+            }
         }
         Ok(format!("{} installed", spec.app.as_str()))
     }

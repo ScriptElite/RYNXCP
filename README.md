@@ -51,7 +51,7 @@ reconciliation engine and UI are original.
 | Accounts | Isolated Linux users, package-assigned limits/backend, real suspension (Nginx/apps/FTP) and deletion |
 | Web | Nginx virtual hosts, aliases, TLS, optional HTTP-to-HTTPS redirect, PHP-FPM, reverse proxy, security headers |
 | Runtimes | PHP, Node.js, Python, Ruby, Java, .NET, Go and static sites |
-| Installer | One-click WordPress and Laravel with PHP-FPM, database, TLS and generated credentials |
+| Installer | One-click WordPress, Laravel, Joomla, Grav and MediaWiki with PHP-FPM, TLS and generated credentials |
 | DNS | Authoritative BIND zones, A/AAAA/CNAME/MX/TXT/NS/SRV/CAA records |
 | Email | Postfix + Dovecot mailboxes, aliases/forwarding, quotas, DKIM/OpenDKIM, DMARC, SRV, TLS-RPT and Roundcube webmail |
 | Panel email | Localized Postfix notifications for credentials, password resets, 2FA codes, certificate alerts and delivery tests |
@@ -404,11 +404,21 @@ and installs one of the supported applications:
   with the generated `APP_KEY`, runs `php artisan migrate`, and switches the
   document root to `public/`. Laravel is a framework and does not create an
   administrator user or panel; install a starter kit (Breeze, Jetstream,
-  Filament) or define your own routes. The installer shows the database user,
-  password and host once the job finishes.
+  Filament) or define your own routes.
+- **Joomla**: downloads the pinned Joomla package, extracts it, and runs the
+  official `installation/joomla.php install` CLI with the database, site title
+  and administrator credentials.
+- **Grav**: downloads the Grav Admin package, extracts it as the account user
+  and creates an administrator through the login plugin CLI. It does not use a
+  database or consume a database slot.
+- **MediaWiki**: downloads the pinned MediaWiki archive, extracts it and runs
+  `maintenance/run.php install` with the database, wiki name and administrator
+  account.
 
-Both installers create the PHP-FPM pool, a MariaDB database and credentials,
-apply the package limits and start a Let's Encrypt job when TLS is selected.
+All installers create the PHP-FPM pool, apply the package limits and start a
+Let's Encrypt job when TLS is selected. WordPress, Laravel, Joomla and MediaWiki
+also create a MariaDB database and credentials; Grav is flat-file and skips the
+database.
 Every domain and subdomain gets its own document root, for example
 `<domain>/public_html`. Installer files live there too (Laravel serves from
 `<domain>/public_html/public`), so domains and subdomains never share or expose

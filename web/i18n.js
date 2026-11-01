@@ -13,6 +13,16 @@
   ];
 
   const EN = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav and MediaWiki on a new site with PHP, database and TLS",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "Full CMS with database, administrator account and CLI setup.",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "Flat-file CMS with Admin panel; no database required.",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "Wiki with database, LocalSettings and administrator account.",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "Creates a new site with PHP-FPM and TLS certificate, without a database.",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "The installer creates the site, the PHP pool, the database when the application needs it, and the application files. It does not overwrite existing sites and requires a hosting account.",
+    "Descargando la aplicación": "Downloading the application",
     "Memoria (MB)": "Memory (MB)",
     "CPU (%)": "CPU (%)",
     "Procesos": "Processes",
@@ -896,6 +906,16 @@
   };
 
   const PT = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav e MediaWiki num site novo com PHP, base de dados e TLS",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "CMS completo com base de dados, conta de administrador e configuração inicial por CLI.",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "CMS de ficheiros planos com painel Admin; não precisa de base de dados.",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "Wiki com base de dados, LocalSettings e conta de administrador.",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "Cria um site novo com PHP-FPM e certificado TLS, sem base de dados.",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "O instalador cria o site, o pool PHP, a base de dados quando a aplicação a necessita e os ficheiros da aplicação. Não substitui sites existentes e requer uma conta de alojamento.",
+    "Descargando la aplicación": "A transferir a aplicação",
     "Memoria (MB)": "Memória (MB)",
     "CPU (%)": "CPU (%)",
     "Procesos": "Processos",
@@ -1708,6 +1728,16 @@
   };
 
   const FR = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav et MediaWiki sur un nouveau site avec PHP, base de données et TLS",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "CMS complet avec base de données, compte administrateur et configuration initiale en CLI.",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "CMS de fichiers plats avec panneau Admin ; aucune base de données requise.",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "Wiki avec base de données, LocalSettings et compte administrateur.",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "Crée un nouveau site avec PHP-FPM et certificat TLS, sans base de données.",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "L'installateur crée le site, le pool PHP, la base de données lorsque l'application en a besoin et les fichiers de l'application. Il ne remplace pas les sites existants et nécessite un compte d'hébergement.",
+    "Descargando la aplicación": "Téléchargement de l'application",
     "Memoria (MB)": "Mémoire (MB)",
     "CPU (%)": "CPU (%)",
     "Procesos": "Processus",
@@ -2521,6 +2551,16 @@
   };
 
   const AR = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress وLaravel وJoomla وGrav وMediaWiki في موقع جديد باستخدام PHP وقاعدة بيانات وTLS",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "نظام CMS كامل مع قاعدة بيانات وحساب مسؤول وإعداد أولي عبر CLI.",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "نظام CMS بملفات مسطحة مع لوحة Admin؛ لا يحتاج إلى قاعدة بيانات.",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "ويكي مع قاعدة بيانات وLocalSettings وحساب مسؤول.",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "ينشئ موقعاً جديداً باستخدام PHP-FPM وشهادة TLS دون قاعدة بيانات.",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "ينشئ المثبت الموقع ومجموعة PHP وقاعدة البيانات عند الحاجة وملفات التطبيق. لا يستبدل المواقع الحالية ويتطلب حساب استضافة.",
+    "Descargando la aplicación": "جارٍ تنزيل التطبيق",
     "Memoria (MB)": "الذاكرة (MB)",
     "CPU (%)": "المعالج (%)",
     "Procesos": "العمليات",
@@ -3336,6 +3376,16 @@
   };
 
   const RU = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav и MediaWiki на новом сайте с PHP, базой данных и TLS",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "Полноценная CMS с базой данных, администратором и первичной настройкой через CLI.",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "Flat-file CMS с панелью Admin; база данных не требуется.",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "Вики с базой данных, LocalSettings и администратором.",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "Создаёт новый сайт с PHP-FPM и TLS-сертификатом, без базы данных.",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "Установщик создаёт сайт, пул PHP, базу данных при необходимости и файлы приложения. Он не перезаписывает существующие сайты и требует аккаунт хостинга.",
+    "Descargando la aplicación": "Загрузка приложения",
     "Memoria (MB)": "Память (МБ)",
     "CPU (%)": "CPU (%)",
     "Procesos": "Процессы",
@@ -4150,6 +4200,16 @@
   };
 
   const ZH = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress、Laravel、Joomla、Grav 和 MediaWiki，使用 PHP、数据库和 TLS 创建新站点",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "完整 CMS，包含数据库、管理员账户和 CLI 初始配置。",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "基于平面文件的 CMS，带 Admin 面板；无需数据库。",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "带数据库、LocalSettings 和管理员账户的 Wiki。",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "创建使用 PHP-FPM 和 TLS 证书的新站点，无需数据库。",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "安装程序会创建站点、PHP 池、应用所需的数据库和应用文件。不会覆盖现有站点，并且需要托管账户。",
+    "Descargando la aplicación": "正在下载应用",
     "Memoria (MB)": "内存 (MB)",
     "CPU (%)": "CPU (%)",
     "Procesos": "进程",
@@ -4961,6 +5021,16 @@
   };
 
   const JA = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress、Laravel、Joomla、Grav、MediaWiki を PHP・データベース・TLS 付きの新規サイトに導入",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "データベース、管理者アカウント、CLI初期設定を備えたCMSです。",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "フラットファイルCMS（Adminパネル付き）。データベース不要。",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "データベース、LocalSettings、管理者アカウントを備えたWikiです。",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "PHP-FPMとTLS証明書を使用した新しいサイトをデータベースなしで作成します。",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "インストーラーはサイト、PHPプール、アプリに必要なデータベース、アプリファイルを作成します。既存サイトは上書きせず、ホスティングアカウントが必要です。",
+    "Descargando la aplicación": "アプリをダウンロード中",
     "Memoria (MB)": "メモリ (MB)",
     "CPU (%)": "CPU (%)",
     "Procesos": "プロセス",
@@ -5775,6 +5845,16 @@
   };
 
   const IT = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav e MediaWiki su un nuovo sito con PHP, database e TLS",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "CMS completo con database, account amministratore e configurazione iniziale da CLI.",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "CMS flat-file con pannello Admin; nessun database richiesto.",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "Wiki con database, LocalSettings e account amministratore.",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "Crea un nuovo sito con PHP-FPM e certificato TLS, senza database.",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "L'installer crea il sito, il pool PHP, il database quando l'applicazione lo richiede e i file dell'applicazione. Non sovrascrive siti esistenti e richiede un account di hosting.",
+    "Descargando la aplicación": "Download dell'applicazione",
     "Memoria (MB)": "Memoria (MB)",
     "CPU (%)": "CPU (%)",
     "Procesos": "Processi",
@@ -6583,6 +6663,16 @@
   };
 
   const DE = {
+    "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav und MediaWiki auf einer neuen Website mit PHP, Datenbank und TLS",
+    "Joomla": "Joomla",
+    "Grav": "Grav",
+    "MediaWiki": "MediaWiki",
+    "CMS completo con base de datos, cuenta de administrador y configuración inicial por CLI.": "Vollständiges CMS mit Datenbank, Administratorkonto und CLI-Ersteinrichtung.",
+    "CMS de archivos planos con panel Admin; no necesita base de datos.": "Flat-File-CMS mit Admin-Panel; keine Datenbank erforderlich.",
+    "Wiki con base de datos, LocalSettings y cuenta de administrador.": "Wiki mit Datenbank, LocalSettings und Administratorkonto.",
+    "Crea un sitio nuevo con PHP-FPM y certificado TLS, sin base de datos.": "Erstellt eine neue Website mit PHP-FPM und TLS-Zertifikat, ohne Datenbank.",
+    "El instalador crea el sitio, el pool PHP, la base de datos cuando la aplicación la necesita y los archivos de la aplicación. No sobrescribe sitios existentes y requiere una cuenta de hosting.": "Der Installer erstellt die Website, den PHP-Pool, bei Bedarf die Datenbank und die Anwendungsdateien. Er überschreibt keine bestehenden Websites und erfordert ein Hosting-Konto.",
+    "Descargando la aplicación": "Anwendung wird heruntergeladen",
     "Memoria (MB)": "Arbeitsspeicher (MB)",
     "CPU (%)": "CPU (%)",
     "Procesos": "Prozesse",
