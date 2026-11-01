@@ -137,7 +137,10 @@ CREATE TABLE IF NOT EXISTS packages (
     system_databases   INTEGER NOT NULL DEFAULT 0,
     ftp_accounts       INTEGER NOT NULL DEFAULT 0,
     created_at         TEXT NOT NULL,
-    updated_at         TEXT NOT NULL
+    updated_at         TEXT NOT NULL,
+    memory_mb          INTEGER NOT NULL DEFAULT 0,
+    cpu_percent        INTEGER NOT NULL DEFAULT 0,
+    process_limit      INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_packages_name_lower ON packages(lower(name));
 CREATE UNIQUE INDEX IF NOT EXISTS idx_packages_default ON packages(is_default) WHERE is_default = 1;
@@ -505,6 +508,19 @@ impl PanelDb {
                 "ALTER TABLE packages ADD COLUMN ftp_accounts INTEGER NOT NULL DEFAULT 0",
                 [],
             )?;
+        }
+        for column in ["memory_mb", "cpu_percent", "process_limit"] {
+            let exists: bool = conn
+                .prepare("PRAGMA table_info(packages)")?
+                .query_map([], |row| row.get::<_, String>(1))?
+                .filter_map(Result::ok)
+                .any(|name| name == column);
+            if !exists {
+                conn.execute(
+                    &format!("ALTER TABLE packages ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"),
+                    [],
+                )?;
+            }
         }
         let has_agent_summary: bool = conn
             .prepare("PRAGMA table_info(agent_runs)")?
@@ -1570,9 +1586,10 @@ impl PanelDb {
             "INSERT INTO packages (id, name, is_default, account_mb, bandwidth_mb, backups, \
                  incremental_backup, web_domains, web_aliases, web_backend, nginx_template, \
                  dns_template, dns_zones, dns_records, nameservers, mail_domains, mail_accounts, \
-                 mail_rate_limit, databases, system_databases, ftp_accounts, created_at, updated_at) \
+                 mail_rate_limit, databases, system_databases, ftp_accounts, created_at, updated_at, \
+                 memory_mb, cpu_percent, process_limit) \
              VALUES (?1, ?2, 1, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, \
-                 ?17, ?18, ?19, ?20, ?21, ?22)",
+                 ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
             params![
                 uuid::Uuid::new_v4().to_string(),
                 input.name,
@@ -1596,6 +1613,9 @@ impl PanelDb {
                 input.ftp_accounts,
                 now,
                 now,
+                input.memory_mb,
+                input.cpu_percent,
+                input.process_limit,
             ],
         )?;
         Ok(())
@@ -1607,7 +1627,8 @@ impl PanelDb {
             "SELECT id, name, is_default, account_mb, bandwidth_mb, backups, incremental_backup, \
                     web_domains, web_aliases, web_backend, nginx_template, dns_template, dns_zones, \
                     dns_records, nameservers, mail_domains, mail_accounts, mail_rate_limit, \
-                    databases, system_databases, ftp_accounts, created_at, updated_at \
+                    databases, system_databases, ftp_accounts, created_at, updated_at, \
+                    memory_mb, cpu_percent, process_limit \
              FROM packages ORDER BY is_default DESC, lower(name) ASC",
         )?;
         let rows = stmt.query_map([], map_package)?;
@@ -1625,7 +1646,8 @@ impl PanelDb {
                 "SELECT id, name, is_default, account_mb, bandwidth_mb, backups, incremental_backup, \
                         web_domains, web_aliases, web_backend, nginx_template, dns_template, dns_zones, \
                         dns_records, nameservers, mail_domains, mail_accounts, mail_rate_limit, \
-                        databases, system_databases, ftp_accounts, created_at, updated_at \
+                        databases, system_databases, ftp_accounts, created_at, updated_at, \
+                        memory_mb, cpu_percent, process_limit \
                  FROM packages WHERE id = ?1",
                 params![id],
                 map_package,
@@ -1648,9 +1670,10 @@ impl PanelDb {
             "INSERT INTO packages (id, name, is_default, account_mb, bandwidth_mb, backups, \
                  incremental_backup, web_domains, web_aliases, web_backend, nginx_template, \
                  dns_template, dns_zones, dns_records, nameservers, mail_domains, mail_accounts, \
-                 mail_rate_limit, databases, system_databases, ftp_accounts, created_at, updated_at) \
+                 mail_rate_limit, databases, system_databases, ftp_accounts, created_at, updated_at, \
+                 memory_mb, cpu_percent, process_limit) \
              VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, \
-                 ?17, ?18, ?19, ?20, ?21, ?22)",
+                 ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
             params![
                 id,
                 input.name,
@@ -1674,6 +1697,9 @@ impl PanelDb {
                 input.ftp_accounts,
                 now,
                 now,
+                input.memory_mb,
+                input.cpu_percent,
+                input.process_limit,
             ],
         )?;
         self.get_package(&id)?
@@ -1703,7 +1729,8 @@ impl PanelDb {
                  incremental_backup = ?6, web_domains = ?7, web_aliases = ?8, web_backend = ?9, \
                  nginx_template = ?10, dns_template = ?11, dns_zones = ?12, dns_records = ?13, \
                  nameservers = ?14, mail_domains = ?15, mail_accounts = ?16, mail_rate_limit = ?17, \
-                 databases = ?18, system_databases = ?19, ftp_accounts = ?20, updated_at = ?21 \
+                 databases = ?18, system_databases = ?19, ftp_accounts = ?20, updated_at = ?21, \
+                 memory_mb = ?22, cpu_percent = ?23, process_limit = ?24 \
              WHERE id = ?1",
             params![
                 id,
@@ -1727,6 +1754,9 @@ impl PanelDb {
                 input.system_databases,
                 input.ftp_accounts,
                 now_rfc3339(),
+                input.memory_mb,
+                input.cpu_percent,
+                input.process_limit,
             ],
         )?;
         self.get_package(id)?
@@ -2146,6 +2176,9 @@ fn map_package(row: &rusqlite::Row<'_>) -> rusqlite::Result<PackageView> {
             databases: row.get(18)?,
             system_databases: row.get(19)?,
             ftp_accounts: row.get(20)?,
+            memory_mb: row.get(23)?,
+            cpu_percent: row.get(24)?,
+            process_limit: row.get(25)?,
         },
         created_at: row.get(21)?,
         updated_at: row.get(22)?,

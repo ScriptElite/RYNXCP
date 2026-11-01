@@ -117,8 +117,14 @@ pub async fn create(
         // Package limits are locked for assigned accounts.
         if let Some(account) = existing_account.as_ref() {
             spec.disk_limit_mb = account.spec.disk_limit_mb;
+            spec.memory_mb = account.spec.memory_mb;
+            spec.cpu_percent = account.spec.cpu_percent;
+            spec.process_limit = account.spec.process_limit;
         } else if let Some(package) = state.db.get_package(&existing.package_id)? {
             spec.disk_limit_mb = package_disk_limit(package.package.account_mb);
+            spec.memory_mb = package.package.memory_mb;
+            spec.cpu_percent = package.package.cpu_percent;
+            spec.process_limit = package.package.process_limit;
         }
     } else if let Some(package_id) = body.package_id.as_deref() {
         let package = state
@@ -136,6 +142,9 @@ pub async fn create(
             )));
         }
         spec.disk_limit_mb = package_disk_limit(package.package.account_mb);
+        spec.memory_mb = package.package.memory_mb;
+        spec.cpu_percent = package.package.cpu_percent;
+        spec.process_limit = package.package.process_limit;
         new_assignment = Some((package_id.to_string(), backend));
     }
 

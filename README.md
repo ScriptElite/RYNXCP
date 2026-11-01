@@ -186,8 +186,10 @@ Each package stores:
 | Databases | database limit |
 | FTP | FTP account limit |
 | System | system database limit |
+| Resources | account RAM (MB), CPU (%) and process/task limit, applied by `rynxd` through the account's systemd user slice |
 
-Every limit accepts 0-1000 except backups (1-3). **0 means unlimited**, and the form exposes a
+Most counters accept 0-1000; memory, CPU and process limits accept larger
+values, and backups accept 1-3. **0 means unlimited**, and the form exposes a
 **Sin límite** button on every field where that applies. Nameservers start with
 `ns1.example.tld` and `ns2.example.tld`; the form can add more. DNS zone and
 record counters are calculated and shown read-only.
@@ -198,9 +200,12 @@ domains, mail accounts, databases, FTP accounts and backups; the Linux account
 disk quota comes from `account_mb` and is applied with `setquota` (ext4) or
 `xfs_quota` (XFS). The preinstaller enables user quotas on the filesystem that
 holds `/home`; when the filesystem cannot provide quotas, the panel logs a
-warning and the kernel does not enforce the disk limit. Bandwidth, mail rate and
-system database counters are stored and shown but are not enforced as hard
-limits.
+warning and the kernel does not enforce the disk limit. `memory_mb`,
+`cpu_percent` and `process_limit` become cgroup limits on the account's
+`user-<uid>.slice`, which also contains its PHP-FPM service, managed apps and
+SSH sessions. Editing a package refreshes these limits for its assigned
+accounts. Bandwidth, mail rate and system database counters are stored and
+shown but are not enforced as hard limits.
 
 Existing plans keep their stored value. Because `web_domains` now covers both
 websites and applications, raise it where a legacy plan was sized for websites
@@ -381,11 +386,10 @@ versions are installed separately.
 
 Each hosting account gets its own `rynx-php-<account>.service` under systemd.
 The service runs only that account's pool, listens on its private socket and is
-placed in its own cgroup with `MemoryMax` (pool memory limit × workers),
-`CPUQuota` (workers × 100%) and `TasksMax` (workers + 16). The default shared
-`php8.5-fpm` service remains for webmail and panel components. Limits are
-derived from the **PHP pool** settings, so raising `max_children` or
-`memory_limit_mb` also raises the account's cgroup ceiling.
+placed in `user-<uid>.slice` together with the account's managed applications
+and SSH sessions. The slice enforces the package's `memory_mb`,
+`cpu_percent` and `process_limit`; zero means unlimited. The default shared
+`php8.5-fpm` service remains for webmail and panel components.
 
 Minimal application examples: [Node.js](docs/node-app.md),
 [Python](docs/python-app.md), [Ruby](docs/ruby-app.md), [Java](docs/java-app.md),

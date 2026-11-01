@@ -6,8 +6,10 @@ panel stack:
 
 - RYNXCP daemon, API, CLI and web panel.
 - Nginx, PHP 8.5, MariaDB, BIND9, Pure-FTPd, OpenDKIM, fail2ban and nftables.
-- One cgroup-limited PHP-FPM service per hosting account; the shared pool is
-  kept for webmail and panel components.
+- One PHP-FPM service per hosting account inside `user-<uid>.slice`, together
+  with managed applications and SSH sessions. Package RAM, CPU and process
+  limits are enforced by that slice; the shared pool is kept for webmail and
+  panel components.
 - Composer, unzip and WP-CLI for the WordPress/Laravel one-click installers.
 - Postfix + Dovecot (2.3/2.4 compatible), quotas, Sieve and Roundcube.
 - ClamAV for SMTP and daily filesystem scans, plus SpamAssassin SMTP scoring.

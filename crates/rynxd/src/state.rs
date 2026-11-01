@@ -31,7 +31,10 @@ CREATE TABLE IF NOT EXISTS accounts (
     uid           INTEGER NOT NULL,
     home          TEXT NOT NULL,
     created_at    TEXT NOT NULL,
-    updated_at    TEXT NOT NULL
+    updated_at    TEXT NOT NULL,
+    memory_mb     INTEGER NOT NULL DEFAULT 0,
+    cpu_percent   INTEGER NOT NULL DEFAULT 0,
+    process_limit INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS websites (
@@ -225,6 +228,9 @@ fn map_account(row: &rusqlite::Row<'_>) -> rusqlite::Result<AccountView> {
             username,
             email: row.get(2)?,
             disk_limit_mb: row.get::<_, i64>(3)? as u64,
+            memory_mb: row.get::<_, i64>(11)? as u64,
+            cpu_percent: row.get::<_, i64>(12)? as u64,
+            process_limit: row.get::<_, i64>(13)? as u64,
             php_version: row.get(4)?,
             enabled: row.get::<_, i64>(5)? != 0,
             ssh_enabled: row.get::<_, i64>(6)? != 0,
@@ -269,6 +275,19 @@ impl StateStore {
                 [],
             )?;
         }
+        for column in ["memory_mb", "cpu_percent", "process_limit"] {
+            let exists: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('accounts') WHERE name = ?1",
+                params![column],
+                |row| row.get(0),
+            )?;
+            if exists == 0 {
+                conn.execute(
+                    &format!("ALTER TABLE accounts ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"),
+                    [],
+                )?;
+            }
+        }
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -287,7 +306,7 @@ impl StateStore {
     pub fn list_accounts(&self) -> Result<Vec<AccountView>> {
         let conn = self.conn()?;
         let mut stmt = conn.prepare(
-            "SELECT username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at \
+            "SELECT username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at, memory_mb, cpu_percent, process_limit \
              FROM accounts ORDER BY username",
         )?;
         let rows = stmt.query_map([], map_account)?;
@@ -302,7 +321,7 @@ impl StateStore {
         let conn = self.conn()?;
         Ok(conn
             .query_row(
-                "SELECT username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at \
+                "SELECT username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at, memory_mb, cpu_percent, process_limit \
                  FROM accounts WHERE username = ?1",
                 params![username],
                 map_account,
@@ -326,10 +345,12 @@ impl StateStore {
         };
         let conn = self.conn()?;
         conn.execute(
-            "INSERT INTO accounts (username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+            "INSERT INTO accounts (username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at, memory_mb, cpu_percent, process_limit) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14) \
              ON CONFLICT(username) DO UPDATE SET \
                email = excluded.email, disk_limit_mb = excluded.disk_limit_mb, \
+               memory_mb = excluded.memory_mb, cpu_percent = excluded.cpu_percent, \
+               process_limit = excluded.process_limit, \
                php_version = excluded.php_version, enabled = excluded.enabled, \
                ssh_enabled = excluded.ssh_enabled, uid = excluded.uid, \
                home = excluded.home, updated_at = excluded.updated_at",
@@ -344,7 +365,10 @@ impl StateStore {
                 uid as i64,
                 home,
                 created_at,
-                now
+                now,
+                spec.memory_mb as i64,
+                spec.cpu_percent as i64,
+                spec.process_limit as i64,
             ],
         )?;
         Ok(AccountView {

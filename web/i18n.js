@@ -13,6 +13,11 @@
   ];
 
   const EN = {
+    "Memoria (MB)": "Memory (MB)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "Processes",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "Enter the 6-digit code sent to {email}.",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "The email code could not be sent. Use a registered passkey.",
     "Usar passkey": "Use passkey",
@@ -891,6 +896,11 @@
   };
 
   const PT = {
+    "Memoria (MB)": "Memória (MB)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "Processos",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "Introduza o código de 6 dígitos enviado para {email}.",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "Não foi possível enviar o código por email. Use uma passkey registada.",
     "Usar passkey": "Usar passkey",
@@ -1698,6 +1708,11 @@
   };
 
   const FR = {
+    "Memoria (MB)": "Mémoire (MB)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "Processus",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "Saisissez le code à 6 chiffres envoyé à {email}.",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "Le code par email n'a pas pu être envoyé. Utilisez une passkey enregistrée.",
     "Usar passkey": "Utiliser une passkey",
@@ -2506,6 +2521,11 @@
   };
 
   const AR = {
+    "Memoria (MB)": "الذاكرة (MB)",
+    "CPU (%)": "المعالج (%)",
+    "Procesos": "العمليات",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "أدخل الرمز المكون من 6 أرقام المرسل إلى {email}.",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "تعذر إرسال الرمز بالبريد الإلكتروني. استخدم مفتاح مرور مسجلاً.",
     "Usar passkey": "استخدام مفتاح المرور",
@@ -3316,6 +3336,11 @@
   };
 
   const RU = {
+    "Memoria (MB)": "Память (МБ)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "Процессы",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "Введите 6-значный код, отправленный на {email}.",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "Не удалось отправить код по email. Используйте зарегистрированный passkey.",
     "Usar passkey": "Использовать passkey",
@@ -4125,6 +4150,11 @@
   };
 
   const ZH = {
+    "Memoria (MB)": "内存 (MB)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "进程",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "请输入发送到 {email} 的 6 位验证码。",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "无法通过电子邮件发送验证码。请使用已注册的通行密钥。",
     "Usar passkey": "使用通行密钥",
@@ -4931,6 +4961,11 @@
   };
 
   const JA = {
+    "Memoria (MB)": "メモリ (MB)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "プロセス",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "{email} に送信された6桁のコードを入力してください。",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "メールでコードを送信できませんでした。登録済みのパスキーを使用してください。",
     "Usar passkey": "パスキーを使用",
@@ -5740,6 +5775,11 @@
   };
 
   const IT = {
+    "Memoria (MB)": "Memoria (MB)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "Processi",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "Inserisci il codice di 6 cifre inviato a {email}.",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "Impossibile inviare il codice via email. Usa una passkey registrata.",
     "Usar passkey": "Usa passkey",
@@ -6543,6 +6583,11 @@
   };
 
   const DE = {
+    "Memoria (MB)": "Arbeitsspeicher (MB)",
+    "CPU (%)": "CPU (%)",
+    "Procesos": "Prozesse",
+    "RAM": "RAM",
+    "CPU": "CPU",
     "Introduce el código de 6 cifras enviado a {email}.": "Geben Sie den 6-stelligen Code ein, der an {email} gesendet wurde.",
     "No se pudo enviar el código por email. Usa una passkey registrada.": "Der E-Mail-Code konnte nicht gesendet werden. Verwenden Sie einen registrierten Passkey.",
     "Usar passkey": "Passkey verwenden",

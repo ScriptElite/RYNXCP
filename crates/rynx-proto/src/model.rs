@@ -536,6 +536,12 @@ pub struct AccountSpec {
     pub username: String,
     pub email: String,
     pub disk_limit_mb: u64,
+    #[serde(default)]
+    pub memory_mb: u64,
+    #[serde(default)]
+    pub cpu_percent: u64,
+    #[serde(default)]
+    pub process_limit: u64,
     pub php_version: Option<String>,
     pub enabled: bool,
     /// Optional interactive SSH access for the Linux account (key-based).

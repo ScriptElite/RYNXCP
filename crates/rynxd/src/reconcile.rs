@@ -1350,6 +1350,7 @@ impl Reconciler {
                 .join(&env_filename)
                 .display()
                 .to_string(),
+            account.uid,
         );
         let env_content = templates::app_env_file(spec);
 

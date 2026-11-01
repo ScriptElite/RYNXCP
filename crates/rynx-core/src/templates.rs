@@ -365,7 +365,7 @@ fn systemd_escape_arg(value: &str) -> String {
 }
 
 /// systemd unit for a managed application (Node, Python, Ruby, Java, .NET, Go).
-pub fn systemd_unit(app: &AppSpec, working_dir: &str, env_file: &str) -> String {
+pub fn systemd_unit(app: &AppSpec, working_dir: &str, env_file: &str, uid: u32) -> String {
     let mut out = String::with_capacity(1024);
     let _ = writeln!(out, "# {MARKER}");
     let _ = writeln!(
@@ -379,6 +379,7 @@ pub fn systemd_unit(app: &AppSpec, working_dir: &str, env_file: &str) -> String 
     let _ = writeln!(out, "Type=simple");
     let _ = writeln!(out, "User={}", app.username);
     let _ = writeln!(out, "Group={}", app.username);
+    let _ = writeln!(out, "Slice=user-{uid}.slice");
     let _ = writeln!(out, "WorkingDirectory={working_dir}");
     let _ = writeln!(out, "EnvironmentFile=-{env_file}");
     let _ = writeln!(out, "Environment=PORT={}", app.port);
@@ -810,7 +811,12 @@ mod tests {
             env: BTreeMap::new(),
             enabled: true,
         };
-        let unit = systemd_unit(&app, "/home/acme/apps/api", "/etc/rynxcp/apps/acme-api.env");
+        let unit = systemd_unit(
+            &app,
+            "/home/acme/apps/api",
+            "/etc/rynxcp/apps/acme-api.env",
+            2000,
+        );
         assert!(unit.contains("User=acme"));
         assert!(unit.contains("ExecStart=gunicorn app:app --bind=127.0.0.1:4100"));
         assert!(unit.contains("NoNewPrivileges=true"));

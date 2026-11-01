@@ -7,6 +7,9 @@ pub const MAX_LIMIT: u64 = 1000;
 pub const MIN_BACKUPS: u64 = 1;
 pub const MAX_BACKUPS: u64 = 3;
 pub const MAX_NAMESERVERS: usize = 16;
+pub const MAX_MEMORY_MB: u64 = 1_048_576;
+pub const MAX_CPU_PERCENT: u64 = 100_000;
+pub const MAX_PROCESSES: u64 = 100_000;
 
 pub const WEB_BACKENDS: &[&str] = &[
     "static", "php", "node", "python", "ruby", "java", "dotnet", "go",
@@ -37,6 +40,15 @@ pub struct PackageInput {
     pub system_databases: u64,
     #[serde(default)]
     pub ftp_accounts: u64,
+    /// Aggregate cgroup memory limit for the account, in MB. Zero is unlimited.
+    #[serde(default)]
+    pub memory_mb: u64,
+    /// Aggregate cgroup CPU limit for the account, in percent. Zero is unlimited.
+    #[serde(default)]
+    pub cpu_percent: u64,
+    /// Aggregate task/process limit for the account. Zero is unlimited.
+    #[serde(default)]
+    pub process_limit: u64,
 }
 
 /// Stored package plus its identity and timestamps.
@@ -81,6 +93,9 @@ pub fn default_package() -> PackageInput {
         databases: 0,
         system_databases: 0,
         ftp_accounts: 0,
+        memory_mb: 0,
+        cpu_percent: 0,
+        process_limit: 0,
     }
 }
 
@@ -117,6 +132,21 @@ pub fn normalize_and_validate(mut input: PackageInput) -> Result<PackageInput, P
                 "{field} must be between 0 and {MAX_LIMIT}"
             )));
         }
+    }
+    if input.memory_mb > MAX_MEMORY_MB {
+        return Err(PanelError::Validation(format!(
+            "memory_mb must be between 0 and {MAX_MEMORY_MB}"
+        )));
+    }
+    if input.cpu_percent > MAX_CPU_PERCENT {
+        return Err(PanelError::Validation(format!(
+            "cpu_percent must be between 0 and {MAX_CPU_PERCENT}"
+        )));
+    }
+    if input.process_limit > MAX_PROCESSES {
+        return Err(PanelError::Validation(format!(
+            "process_limit must be between 0 and {MAX_PROCESSES}"
+        )));
     }
     if !(MIN_BACKUPS..=MAX_BACKUPS).contains(&input.backups) {
         return Err(PanelError::Validation(format!(

@@ -903,6 +903,9 @@ function packageSummary(pkg) {
   if (!pkg) return '';
   const rows = [
     ['Cuenta', diskText(pkg.account_mb)],
+    ['Memoria', limitText(pkg.memory_mb)],
+    ['CPU', pkg.cpu_percent ? `${pkg.cpu_percent}%` : 'Sin límite'],
+    ['Procesos', limitText(pkg.process_limit)],
     ['Ancho de banda', limitText(pkg.bandwidth_mb)],
     ['Backups', pkg.backups],
     ['Dominios webs - apps', limitText(pkg.web_domains)],
@@ -2853,6 +2856,9 @@ async function renderPackages() {
   const rows = S.data.packages.map((pkg) => [
     td(`<div class="cell-title">${esc(pkg.name)}</div>${pkg.is_default ? `<div class="cell-sub">${esc(T('Por defecto'))}</div>` : ''}`),
     td(esc(limitText(pkg.account_mb))),
+    td(esc(limitText(pkg.memory_mb))),
+    td(esc(pkg.cpu_percent ? `${pkg.cpu_percent}%` : 'Sin límite')),
+    td(esc(limitText(pkg.process_limit))),
     td(esc(limitText(pkg.bandwidth_mb))),
     td(esc(pkg.backups)),
     td(esc(limitText(pkg.web_domains))),
@@ -2868,7 +2874,7 @@ async function renderPackages() {
     sectionHead('Paquetes', `<button class="btn primary" data-action="package-new">${T('Nuevo paquete')}</button>`) +
     `<p class="hint" style="margin:0 0 14px">${esc(T('0 significa sin límite. El paquete Por defecto es editable pero no se puede eliminar.'))}</p>` +
     table(
-      ['Paquete', 'Cuenta (MB)', 'Ancho de banda', 'Backups', 'Dominios webs - apps', 'Cuentas de email', 'Bases de datos', ''],
+      ['Paquete', 'Cuenta (MB)', 'RAM', 'CPU', 'Procesos', 'Ancho de banda', 'Backups', 'Dominios webs - apps', 'Cuentas de email', 'Bases de datos', ''],
       rows,
       'Aún no hay paquetes.',
     );
@@ -2900,6 +2906,9 @@ function openPackageModal(pkg = null) {
       ${formSection('General', 'Los límites van de 0 a 1000. 0 significa sin límite.')}
       ${fInput('name', 'Nombre del paquete', { required: true, value: pick('name', ''), placeholder: 'Starter' })}
       ${pkgNumber('account_mb', 'Cuenta (MB)', { value: pick('account_mb', 1) })}
+      ${pkgNumber('memory_mb', 'Memoria (MB)', { max: 1048576, value: pick('memory_mb', 0) })}
+      ${pkgNumber('cpu_percent', 'CPU (%)', { max: 100000, value: pick('cpu_percent', 0) })}
+      ${pkgNumber('process_limit', 'Procesos', { max: 100000, value: pick('process_limit', 0) })}
       ${pkgNumber('bandwidth_mb', 'Ancho de banda', { value: pick('bandwidth_mb', 1) })}
       ${pkgNumber('backups', 'Backups', { min: 1, max: 3, value: pick('backups', 1), unlimited: false, help: 'Entre 1 y 3.' })}
       ${fSelect('incremental_backup', 'Backup incremental', yesNo, { value: pick('incremental_backup', false) ? '1' : '0' })}
@@ -2963,6 +2972,9 @@ function openPackageModal(pkg = null) {
       const payload = {
         name: val(form, 'name'),
         account_mb: num(form, 'account_mb'),
+        memory_mb: num(form, 'memory_mb'),
+        cpu_percent: num(form, 'cpu_percent'),
+        process_limit: num(form, 'process_limit'),
         bandwidth_mb: num(form, 'bandwidth_mb'),
         backups: num(form, 'backups', 1),
         incremental_backup: val(form, 'incremental_backup') === '1',

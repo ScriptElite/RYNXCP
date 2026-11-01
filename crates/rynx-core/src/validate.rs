@@ -278,6 +278,15 @@ pub fn validate_account_spec(spec: &AccountSpec) -> CoreResult<()> {
     validate_username(&spec.username)?;
     validate_email(&spec.email)?;
     validate_disk_limit(spec.disk_limit_mb)?;
+    if spec.memory_mb > 1_048_576 {
+        return Err(invalid("memory_mb must be between 0 and 1048576"));
+    }
+    if spec.cpu_percent > 100_000 {
+        return Err(invalid("cpu_percent must be between 0 and 100000"));
+    }
+    if spec.process_limit > 100_000 {
+        return Err(invalid("process_limit must be between 0 and 100000"));
+    }
     if let Some(version) = &spec.php_version {
         validate_php_version(version)?;
     }

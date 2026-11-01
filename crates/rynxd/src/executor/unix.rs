@@ -67,6 +67,71 @@ impl RealExecutor {
         Ok(())
     }
 
+    async fn apply_user_slice(
+        &self,
+        uid: u32,
+        memory_mb: u64,
+        cpu_percent: u64,
+        process_limit: u64,
+    ) -> ExecResult<()> {
+        let unit = format!("user-{uid}.slice");
+        let path = self.cfg.systemd_dir.join(&unit);
+        let mut body = String::from(
+            "[Unit]\nDescription=RYNXCP account resource slice\nSlice=user.slice\n\n[Slice]\n",
+        );
+        if memory_mb > 0 {
+            body.push_str(&format!("MemoryMax={memory_mb}M\nMemorySwapMax=0\n"));
+        }
+        if cpu_percent > 0 {
+            body.push_str(&format!("CPUQuota={cpu_percent}%\n"));
+        }
+        if process_limit > 0 {
+            body.push_str(&format!("TasksMax={process_limit}\n"));
+        }
+        write_managed(&self.cfg.systemd_dir, &path, &body, 0o644, Some((0, 0)))?;
+        run("systemctl", &["daemon-reload"]).await?;
+        run("systemctl", &["start", &unit]).await?;
+        let mut args = vec![
+            "set-property".to_string(),
+            "--runtime".to_string(),
+            unit.clone(),
+            format!(
+                "MemoryMax={}",
+                if memory_mb > 0 {
+                    format!("{memory_mb}M")
+                } else {
+                    "infinity".to_string()
+                }
+            ),
+            format!(
+                "MemorySwapMax={}",
+                if memory_mb > 0 {
+                    "0".to_string()
+                } else {
+                    "infinity".to_string()
+                }
+            ),
+            format!(
+                "TasksMax={}",
+                if process_limit > 0 {
+                    process_limit.to_string()
+                } else {
+                    "infinity".to_string()
+                }
+            ),
+        ];
+        args.push(format!(
+            "CPUQuota={}",
+            if cpu_percent > 0 {
+                format!("{cpu_percent}%")
+            } else {
+                String::new()
+            }
+        ));
+        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        run("systemctl", &refs).await.map(|_| ())
+    }
+
     async fn apply_disk_quota(&self, username: &str, limit_mb: u64) -> ExecResult<bool> {
         if limit_mb == 0 || limit_mb >= rynx_core::MAX_DISK_LIMIT_MB {
             return Ok(true);
@@ -151,13 +216,7 @@ impl RealExecutor {
     }
 }
 
-fn php_fpm_unit(
-    version: &str,
-    conf: &Path,
-    memory_mb: u64,
-    tasks: u64,
-    cpu_percent: u64,
-) -> String {
+fn php_fpm_unit(version: &str, conf: &Path, uid: u32) -> String {
     format!(
         "[Unit]\n\
          Description=RYNXCP PHP {version} FPM\n\
@@ -167,10 +226,7 @@ fn php_fpm_unit(
          ExecStart=/usr/sbin/php-fpm{version} --nodaemonize --fpm-config {conf}\n\
          Restart=on-failure\n\
          RestartSec=3\n\
-         MemoryMax={memory_mb}M\n\
-         MemorySwapMax=0\n\
-         TasksMax={tasks}\n\
-         CPUQuota={cpu_percent}%\n\n\
+         Slice=user-{uid}.slice\n\n\
          [Install]\n\
          WantedBy=multi-user.target\n",
         conf = conf.display()
@@ -873,19 +929,38 @@ impl Executor for RealExecutor {
                 "disk quota could not be applied"
             ),
         }
+        if let Err(err) = self
+            .apply_user_slice(
+                account_uid,
+                spec.memory_mb,
+                spec.cpu_percent,
+                spec.process_limit,
+            )
+            .await
+        {
+            tracing::warn!(
+                account = %spec.username,
+                error = %err,
+                "account resource slice could not be applied"
+            );
+        }
         Ok(())
     }
 
     async fn remove_account(&self, username: &str, purge: bool) -> ExecResult<()> {
-        let exists = User::from_name(username)
-            .map_err(|e| ExecError::Io(e.to_string()))?
-            .is_some();
-        if exists {
+        let user = User::from_name(username).map_err(|e| ExecError::Io(e.to_string()))?;
+        if let Some(user) = &user {
             if purge {
                 let _ = run("userdel", &["-r", username]).await;
             } else {
                 let _ = run("userdel", &[username]).await;
             }
+            let slice = self
+                .cfg
+                .systemd_dir
+                .join(format!("user-{}.slice", user.uid.as_raw()));
+            let _ = remove_managed(&self.cfg.systemd_dir, &slice);
+            let _ = run("systemctl", &["daemon-reload"]).await;
         }
         if purge {
             let home = self.home(username);
@@ -1274,10 +1349,15 @@ impl Executor for RealExecutor {
         username: &str,
         version: &str,
         content: &str,
-        memory_limit_mb: u64,
-        max_children: u16,
+        _memory_limit_mb: u64,
+        _max_children: u16,
         enable: bool,
     ) -> ExecResult<()> {
+        let uid = User::from_name(username)
+            .map_err(|err| ExecError::Io(err.to_string()))?
+            .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?
+            .uid
+            .as_raw();
         let fpm_dir = self.cfg.php_fpm_root.join(version).join("fpm");
         if !fpm_dir.is_dir() {
             return Err(ExecError::NotFound(format!(
@@ -1307,17 +1387,11 @@ impl Executor for RealExecutor {
             return Ok(());
         }
 
-        let workers = max_children.max(1);
-        let memory_mb = memory_limit_mb.saturating_mul(u64::from(workers));
-        let tasks = u64::from(workers).saturating_add(16);
-        let cpu_percent = u64::from(workers).saturating_mul(100);
         let conf_changed = std::fs::read_to_string(&conf_path)
             .map(|existing| existing != content)
             .unwrap_or(true);
         let unit_changed = std::fs::read_to_string(&unit_path)
-            .map(|existing| {
-                existing != php_fpm_unit(version, &conf_path, memory_mb, tasks, cpu_percent)
-            })
+            .map(|existing| existing != php_fpm_unit(version, &conf_path, uid))
             .unwrap_or(true);
         write_managed(
             &self.cfg.php_fpm_root,
@@ -1326,7 +1400,7 @@ impl Executor for RealExecutor {
             0o644,
             Some((0, 0)),
         )?;
-        let unit = php_fpm_unit(version, &conf_path, memory_mb, tasks, cpu_percent);
+        let unit = php_fpm_unit(version, &conf_path, uid);
         write_managed(
             &self.cfg.systemd_dir,
             &unit_path,

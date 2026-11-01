@@ -3,10 +3,53 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 
 use rynx_panel::{AccountPackageView, PackageInput, PackageView};
+use rynx_proto::{Request, Response as DaemonResponse};
 
 use crate::auth::AuthUser;
 use crate::error::ApiError;
 use crate::state::ApiState;
+
+fn disk_limit(account_mb: u64) -> u64 {
+    if account_mb == 0 {
+        rynx_core::MAX_DISK_LIMIT_MB
+    } else {
+        account_mb.min(rynx_core::MAX_DISK_LIMIT_MB)
+    }
+}
+
+async fn refresh_assigned_limits(state: &ApiState, package: &PackageView) {
+    let Ok(DaemonResponse::Accounts { accounts }) =
+        state.daemon.call(Request::AccountList, "system").await
+    else {
+        return;
+    };
+    let Ok(assignments) = state.db.list_account_packages() else {
+        return;
+    };
+    for assignment in assignments
+        .into_iter()
+        .filter(|assignment| assignment.package_id == package.id)
+    {
+        let Some(account) = accounts
+            .iter()
+            .find(|account| account.spec.username == assignment.account)
+        else {
+            continue;
+        };
+        let mut spec = account.spec.clone();
+        spec.disk_limit_mb = disk_limit(package.package.account_mb);
+        spec.memory_mb = package.package.memory_mb;
+        spec.cpu_percent = package.package.cpu_percent;
+        spec.process_limit = package.package.process_limit;
+        if let Err(err) = state
+            .daemon
+            .call(Request::AccountCreate(spec), "system")
+            .await
+        {
+            tracing::warn!(account = %assignment.account, error = %err, "package limits could not be refreshed");
+        }
+    }
+}
 
 pub async fn list(
     State(state): State<ApiState>,
@@ -35,7 +78,9 @@ pub async fn update(
 ) -> Result<Json<PackageView>, ApiError> {
     auth.require_admin()?;
     auth.require_global()?;
-    Ok(Json(state.db.update_package(&id, body)?))
+    let package = state.db.update_package(&id, body)?;
+    refresh_assigned_limits(&state, &package).await;
+    Ok(Json(package))
 }
 
 pub async fn delete(
