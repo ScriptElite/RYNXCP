@@ -739,6 +739,7 @@ SOCKETMODE="0660"
 OPTIONS="-u spamass-milter -r 15 -m"
 EOF
 chmod 0644 /etc/default/spamass-milter
+install -d -o spamass-milter -g postfix -m 0750 /var/spool/postfix/spamass
 spamd_unit=""
 if systemctl cat spamd.service >/dev/null 2>&1; then
   spamd_unit="spamd"
@@ -786,6 +787,28 @@ if is_ipv4 "$PUBLIC_IP" && [[ -d /etc/bind/zones ]]; then
     bash "$ROOT_DIR/deploy/panel-dns-zone.sh" "$panel_zone_domain" "$PUBLIC_IP" "$DKIM_SELECTOR" || \
       warn "the panel DNS zone for $panel_zone_domain could not be refreshed"
   done
+fi
+
+# Repair DKIM key ownership and modes on every run. Keys created by an older
+# install or copied from a backup can end up unreadable by the OpenDKIM milter,
+# which makes Postfix reject all signed mail with 451 4.7.1.
+if id opendkim >/dev/null 2>&1 && [[ -d /etc/opendkim ]]; then
+  log "Repairing OpenDKIM key permissions"
+  chown opendkim:opendkim /etc/opendkim 2>/dev/null || true
+  chmod 0750 /etc/opendkim
+  if [[ -d /etc/opendkim/keys ]]; then
+    chown -R opendkim:opendkim /etc/opendkim/keys 2>/dev/null || true
+    find /etc/opendkim/keys -type d -exec chmod 0750 {} +
+    find /etc/opendkim/keys -type f -name '*.private' -exec chmod 0600 {} +
+    find /etc/opendkim/keys -type f -name '*.public' -exec chmod 0644 {} +
+  fi
+  for dkim_table in KeyTable SigningTable TrustedHosts; do
+    if [[ -f "/etc/opendkim/$dkim_table" ]]; then
+      chown opendkim:opendkim "/etc/opendkim/$dkim_table" 2>/dev/null || true
+      chmod 0640 "/etc/opendkim/$dkim_table"
+    fi
+  done
+  systemctl try-restart opendkim >/dev/null 2>&1 || warn "opendkim could not be restarted"
 fi
 
 set_toml "$API_CONF" "trust_proxy_headers" "true"

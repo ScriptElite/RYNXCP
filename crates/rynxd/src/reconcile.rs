@@ -2570,6 +2570,9 @@ impl Reconciler {
     }
 
     async fn dns_sync_dkim_tables(&self) -> Result<(), WireError> {
+        if let Err(err) = self.exec.repair_dkim_key_permissions().await {
+            tracing::warn!(error = %err, "DKIM key permissions could not be repaired");
+        }
         let mut keytable = String::from("# managed-by: RYNXCP\n");
         let mut signingtable = String::from("# managed-by: RYNXCP\n");
         for domain in self.state.list_dns_zone_domains().map_err(internal)? {

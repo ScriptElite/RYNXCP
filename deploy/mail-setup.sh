@@ -150,8 +150,10 @@ postconf -e "smtp_tls_security_level = may"
 
 log "Configuring ClamAV SMTP milter"
 install -d -m 0755 /etc/clamav
+install -d -o clamav -g clamav -m 0755 /run/clamav
 cat >/etc/clamav/clamav-milter.conf <<'EOF'
 # managed-by: RYNXCP
+PidFile /run/clamav/clamav-milter.pid
 MilterSocket inet:7357@127.0.0.1
 ClamdSocket unix:/var/run/clamav/clamd.ctl
 User clamav
@@ -160,6 +162,7 @@ OnClean Accept
 AddHeader Replace
 EOF
 chmod 0644 /etc/clamav/clamav-milter.conf
+install -d -o spamass-milter -g postfix -m 0750 /var/spool/postfix/spamass
 
 
 if ! grep -q '^submission inet' /etc/postfix/master.cf; then

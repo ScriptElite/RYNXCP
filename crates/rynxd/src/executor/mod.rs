@@ -312,6 +312,7 @@ pub trait Executor: Send + Sync {
     async fn generate_dkim_key(&self, domain: &str, selector: &str) -> ExecResult<String>;
     async fn remove_dkim_key(&self, domain: &str) -> ExecResult<()>;
     async fn write_dkim_tables(&self, keytable: &str, signingtable: &str) -> ExecResult<()>;
+    async fn repair_dkim_key_permissions(&self) -> ExecResult<()>;
 
     async fn hash_mail_password(&self, password: &str) -> ExecResult<String>;
     async fn sync_mail(

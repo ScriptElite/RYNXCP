@@ -927,6 +927,10 @@ impl Executor for SimExecutor {
         Ok(())
     }
 
+    async fn repair_dkim_key_permissions(&self) -> ExecResult<()> {
+        Ok(())
+    }
+
     async fn write_dkim_tables(&self, keytable: &str, signingtable: &str) -> ExecResult<()> {
         if let Some(path) = &self.cfg.opendkim_keytable {
             if let Some(parent) = path.parent() {

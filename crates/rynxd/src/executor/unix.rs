@@ -2101,8 +2101,10 @@ impl Executor for RealExecutor {
         std::fs::set_permissions(&private, std::fs::Permissions::from_mode(0o600))?;
         std::fs::set_permissions(&public, std::fs::Permissions::from_mode(0o644))?;
         if let Ok(Some(user)) = User::from_name("opendkim") {
-            let _ = chown(&private, Some(user.uid), Some(user.gid));
-            let _ = chown(&public, Some(user.uid), Some(user.gid));
+            chown(&private, Some(user.uid), Some(user.gid))
+                .map_err(|err| ExecError::Io(err.to_string()))?;
+            chown(&public, Some(user.uid), Some(user.gid))
+                .map_err(|err| ExecError::Io(err.to_string()))?;
         }
         let pem = std::fs::read_to_string(&public)?;
         Ok(pem)
@@ -2475,6 +2477,52 @@ impl Executor for RealExecutor {
     async fn reload_mail(&self) -> ExecResult<()> {
         self.reload_service("postfix").await?;
         self.reload_service("dovecot").await?;
+        Ok(())
+    }
+
+    async fn repair_dkim_key_permissions(&self) -> ExecResult<()> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = &self.cfg.dkim_key_dir;
+        if !root.is_dir() {
+            return Ok(());
+        }
+        let owner = User::from_name("opendkim").ok().flatten();
+        if let Some(user) = &owner {
+            let _ = chown(root, Some(user.uid), Some(user.gid));
+        }
+        let _ = std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o750));
+        for entry in std::fs::read_dir(root)? {
+            let dir = entry?.path();
+            if !std::fs::symlink_metadata(&dir)?.file_type().is_dir() {
+                continue;
+            }
+            if let Some(user) = &owner {
+                let _ = chown(&dir, Some(user.uid), Some(user.gid));
+            }
+            let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o750));
+            for entry in std::fs::read_dir(&dir)? {
+                let path = entry?.path();
+                if !std::fs::symlink_metadata(&path)?.file_type().is_file() {
+                    continue;
+                }
+                let name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default();
+                let mode = if name.ends_with(".private") {
+                    0o600
+                } else if name.ends_with(".public") {
+                    0o644
+                } else {
+                    continue;
+                };
+                if let Some(user) = &owner {
+                    let _ = chown(&path, Some(user.uid), Some(user.gid));
+                }
+                let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode));
+            }
+        }
         Ok(())
     }
 
