@@ -1101,6 +1101,8 @@ impl Executor for SimExecutor {
             hostname: std::env::var("COMPUTERNAME")
                 .or_else(|_| std::env::var("HOSTNAME"))
                 .unwrap_or_else(|_| "rynx-sim".into()),
+            primary_ip: Some("203.0.113.10".into()),
+            ssh_port: 22,
             os: format!("{} (simulation)", std::env::consts::OS),
             kernel: "simulation".into(),
             uptime_secs: 0,

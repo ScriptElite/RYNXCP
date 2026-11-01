@@ -564,6 +564,10 @@ fn default_force_https() -> bool {
     true
 }
 
+fn default_ssh_port() -> u16 {
+    22
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WebsiteView {
     pub id: String,
@@ -1016,6 +1020,11 @@ fn default_log_lines() -> u32 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SystemInfo {
     pub hostname: String,
+    /// Public address advertised to users (for SSH, DNS hints, etc.).
+    #[serde(default)]
+    pub primary_ip: Option<String>,
+    #[serde(default = "default_ssh_port")]
+    pub ssh_port: u16,
     pub os: String,
     pub kernel: String,
     pub uptime_secs: u64,

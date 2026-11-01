@@ -148,6 +148,8 @@ try {
     if (-not $acmeMe.ssh_enabled) { throw 'scoped user did not receive SSH access' }
     $sshStatus = Invoke-RestMethod -Uri "$base/api/v1/ssh" -WebSession $acmeSess -Headers $acmeHeaders
     if ($sshStatus.username -ne 'acme') { throw 'SSH status has the wrong account' }
+    if ($sshStatus.host -ne '203.0.113.10') { throw 'SSH status did not use the primary IP' }
+    if ($sshStatus.port -ne 22) { throw 'SSH status has the wrong port' }
     $sshKey = 'ssh-ed25519 ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('smoke-key')) + ' smoke@test'
     $null = Invoke-RestMethod -Uri "$base/api/v1/ssh/keys" -Method Post -WebSession $acmeSess `
         -Headers $acmeHeaders -ContentType 'application/json' -Body (@{ key = $sshKey } | ConvertTo-Json)

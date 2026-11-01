@@ -18,21 +18,30 @@ fn account(auth: &AuthUser) -> Result<&str, ApiError> {
     auth.scoped_account().ok_or(ApiError::Forbidden)
 }
 
-async fn host(state: &ApiState, actor: &str) -> String {
+async fn endpoint(state: &ApiState, actor: &str) -> (String, u16) {
     if let Ok(DaemonResponse::SystemInfo { info }) =
         state.daemon.call(Request::SystemInfo, actor).await
     {
+        let port = if info.ssh_port == 0 {
+            22
+        } else {
+            info.ssh_port
+        };
+        if let Some(ip) = info.primary_ip.filter(|ip| !ip.trim().is_empty()) {
+            return (ip, port);
+        }
         if !info.hostname.trim().is_empty() {
-            return info.hostname;
+            return (info.hostname, port);
         }
     }
-    state
+    let host = state
         .cfg
         .public_url
         .as_deref()
         .and_then(|url| reqwest::Url::parse(url).ok())
         .and_then(|url| url.host_str().map(str::to_string))
-        .unwrap_or_else(|| "localhost".into())
+        .unwrap_or_else(|| "localhost".into());
+    (host, 22)
 }
 
 pub async fn status(
@@ -57,10 +66,11 @@ pub async fn status(
             )))
         }
     };
+    let (host, port) = endpoint(&state, &auth.user.username).await;
     Ok(Json(json!({
         "username": username,
-        "host": host(&state, &auth.user.username).await,
-        "port": 22,
+        "host": host,
+        "port": port,
         "keys": keys,
     })))
 }

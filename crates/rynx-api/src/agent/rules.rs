@@ -450,6 +450,8 @@ mod tests {
         Snapshot {
             system: Some(SystemInfo {
                 hostname: "node".into(),
+                primary_ip: None,
+                ssh_port: 22,
                 os: "Debian".into(),
                 kernel: "6.1".into(),
                 uptime_secs: 100,

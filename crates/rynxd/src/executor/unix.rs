@@ -2755,6 +2755,12 @@ impl Executor for RealExecutor {
 
         Ok(SystemInfo {
             hostname,
+            primary_ip: self
+                .cfg
+                .default_ipv4
+                .clone()
+                .or_else(|| self.cfg.default_ipv6.clone()),
+            ssh_port: self.cfg.firewall_ssh_port,
             os,
             kernel,
             uptime_secs,
