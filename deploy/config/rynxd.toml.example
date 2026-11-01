@@ -41,6 +41,8 @@ installer_staging = "/var/lib/rynxcp/staging"
 offsite_enabled = false
 offsite_repository = ""
 offsite_password_file = ""
+# Optional 0600 file with provider credentials, one KEY=VALUE per line.
+offsite_env_file = ""
 restic_bin = "restic"
 
 # ---- user rules / limits ----

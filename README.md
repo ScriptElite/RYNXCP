@@ -726,6 +726,35 @@ them daily.
 which encrypts it before it leaves the server. The local backup is kept even if
 the offsite upload fails; failures are logged and do not block the backup.
 
+Provider credentials go in an optional root-only `offsite_env_file`
+(`0600`) with one `KEY=VALUE` per line. Restic reads it without exposing the
+secrets in the process list:
+
+```toml
+offsite_enabled = true
+offsite_repository = "s3:https://s3.example.com/bucket"
+offsite_password_file = "/etc/rynxcp/restic-password"
+offsite_env_file = "/etc/rynxcp/restic.env"
+restic_bin = "restic"
+```
+
+```bash
+sudo install -m 0600 /dev/null /etc/rynxcp/restic-password
+openssl rand -hex 32 | sudo tee /etc/rynxcp/restic-password >/dev/null
+sudo install -m 0600 /dev/null /etc/rynxcp/restic.env
+# Edit /etc/rynxcp/restic.env with the provider keys:
+# AWS_ACCESS_KEY_ID=...
+# AWS_SECRET_ACCESS_KEY=...
+# AWS_DEFAULT_REGION=...
+sudo systemctl restart rynxd
+```
+
+Common repositories: `s3:https://s3.example.com/bucket`, `b2:bucket:path`,
+`sftp:user@backup.example.com:/srv/restic` (SSH key on root) and a local mounted
+path such as `/mnt/backup/rynxcp`. Restic initializes the repository on the first
+backup; the repository password and provider credentials are never written to
+the local backup or the panel database.
+
 Restore only extracts managed paths (`home/<account>`, nginx, php, systemd, apps),
 rejects `..` and absolute paths, and re-applies desired state afterwards.
 

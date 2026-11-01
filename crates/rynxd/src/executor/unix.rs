@@ -226,6 +226,39 @@ async fn run_owned(program: &str, args: &[String]) -> ExecResult<String> {
     run(program, &refs).await
 }
 
+async fn run_with_env(
+    program: &str,
+    args: &[String],
+    envs: &[(String, String)],
+) -> ExecResult<String> {
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let mut command = tokio::process::Command::new(program);
+    command
+        .args(&refs)
+        .env_clear()
+        .env("PATH", SAFE_PATH)
+        .env("LC_ALL", "C")
+        .env("HOME", "/root");
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    let output = command.output().await.map_err(|e| ExecError::Command {
+        program: program.to_string(),
+        args: args.join(" "),
+        status: -1,
+        stderr: e.to_string(),
+    })?;
+    if !output.status.success() {
+        return Err(ExecError::Command {
+            program: program.to_string(),
+            args: args.join(" "),
+            status: output.status.code().unwrap_or(-1),
+            stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
 async fn run_with_stdin(program: &str, args: &[&str], input: &str) -> ExecResult<String> {
     let mut child = tokio::process::Command::new(program)
         .args(args)
@@ -414,6 +447,45 @@ fn write_owned_file(path: &Path, data: &[u8], uid: Uid, gid: Gid) -> ExecResult<
     chown(path, Some(uid), Some(gid))
         .map_err(|err| ExecError::Io(format!("cannot chown {}: {err}", path.display())))?;
     Ok(())
+}
+
+fn read_restic_env(path: &Path) -> ExecResult<Vec<(String, String)>> {
+    use std::os::unix::fs::PermissionsExt;
+    let meta = std::fs::metadata(path)
+        .map_err(|err| ExecError::Io(format!("cannot read {}: {err}", path.display())))?;
+    if meta.permissions().mode() & 0o077 != 0 {
+        return Err(ExecError::InvalidInput(
+            "offsite_env_file must not be readable by other users".into(),
+        ));
+    }
+    let content = std::fs::read_to_string(path)
+        .map_err(|err| ExecError::Io(format!("cannot read {}: {err}", path.display())))?;
+    let mut envs = Vec::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            return Err(ExecError::InvalidInput(
+                "offsite_env_file contains an invalid line".into(),
+            ));
+        };
+        let key = key.trim();
+        let value = value.trim();
+        if key.is_empty()
+            || !key
+                .chars()
+                .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_')
+            || value.chars().any(|ch| ch.is_control())
+        {
+            return Err(ExecError::InvalidInput(
+                "offsite_env_file contains an invalid entry".into(),
+            ));
+        }
+        envs.push((key.to_string(), value.to_string()));
+    }
+    Ok(envs)
 }
 
 fn stage_installer_archive(home: &Path, archive: &Path, owner: &User) -> ExecResult<PathBuf> {
@@ -2091,25 +2163,34 @@ impl Executor for RealExecutor {
                 value
             }
         };
-        let mut base = vec![
-            format!("RESTIC_REPOSITORY={repository}"),
-            format!("RESTIC_PASSWORD_FILE={}", password_file.display()),
-            bin.to_string(),
+        let mut envs = vec![
+            ("RESTIC_REPOSITORY".into(), repository.to_string()),
+            (
+                "RESTIC_PASSWORD_FILE".into(),
+                password_file.display().to_string(),
+            ),
         ];
-        let mut snapshots = base.clone();
-        snapshots.push("snapshots".into());
-        snapshots.push("--no-cache".into());
-        if run_owned("/usr/bin/env", &snapshots).await.is_err() {
-            let mut init = base.clone();
-            init.push("init".into());
-            run_owned("/usr/bin/env", &init).await?;
+        if let Some(env_file) = self
+            .cfg
+            .offsite_env_file
+            .as_ref()
+            .filter(|path| !path.as_os_str().is_empty())
+        {
+            envs.extend(read_restic_env(env_file)?);
         }
-        base.push("backup".into());
-        base.push(path.display().to_string());
-        base.push("--tag".into());
-        base.push(tag.to_string());
-        base.push("--no-cache".into());
-        run_owned("/usr/bin/env", &base).await?;
+        let mut snapshots = vec!["snapshots".to_string(), "--no-cache".to_string()];
+        if run_with_env(bin, &snapshots, &envs).await.is_err() {
+            snapshots = vec!["init".to_string()];
+            run_with_env(bin, &snapshots, &envs).await?;
+        }
+        let backup = vec![
+            "backup".to_string(),
+            path.display().to_string(),
+            "--tag".to_string(),
+            tag.to_string(),
+            "--no-cache".to_string(),
+        ];
+        run_with_env(bin, &backup, &envs).await?;
         Ok(true)
     }
 
