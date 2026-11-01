@@ -222,7 +222,7 @@ try {
     if (-not (Select-String -Path $phpConf -Pattern 'fastcgi_pass unix:' -Quiet)) {
         throw 'php site does not use fastcgi'
     }
-    $poolConf = Join-Path $root 'data/daemon/sandbox/php/8.3/fpm/pool.d/rynx-acme.conf'
+    $poolConf = Join-Path $root 'data/daemon/sandbox/php/8.3/fpm/rynxcp/rynx-acme.conf'
     if (-not (Test-Path $poolConf)) { throw 'php pool was not rendered' }
 
     Write-Host '==> one-click installer'
