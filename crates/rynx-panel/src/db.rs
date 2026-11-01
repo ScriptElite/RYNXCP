@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -346,6 +347,38 @@ fn map_user(row: &rusqlite::Row<'_>) -> rusqlite::Result<UserView> {
     })
 }
 
+/// Keeps database upgrades working when an older build allowed duplicate
+/// emails. The first row keeps the address; later duplicates get a `+dupN`
+/// suffix so the unique index can be created. Affected users can edit it later.
+fn deduplicate_panel_emails(conn: &Connection) -> Result<(), PanelError> {
+    let mut stmt = conn.prepare("SELECT rowid, email FROM panel_users ORDER BY rowid")?;
+    let rows: Vec<(i64, String)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<Result<_, _>>()?;
+    drop(stmt);
+    let mut seen = HashSet::new();
+    for (rowid, email) in rows {
+        if seen.insert(email.to_ascii_lowercase()) {
+            continue;
+        }
+        let (local, domain) = email.split_once('@').unwrap_or((email.as_str(), "invalid"));
+        let unique = format!("{local}+dup{rowid}@{domain}");
+        conn.execute(
+            "UPDATE panel_users SET email = ?1 WHERE rowid = ?2",
+            params![unique, rowid],
+        )?;
+    }
+    Ok(())
+}
+
+fn email_conflict(err: rusqlite::Error) -> PanelError {
+    if err.to_string().contains("UNIQUE constraint failed") {
+        PanelError::Conflict("email is already used by another panel user".into())
+    } else {
+        err.into()
+    }
+}
+
 impl PanelDb {
     pub fn open(path: &Path) -> Result<Self, PanelError> {
         if let Some(parent) = path.parent() {
@@ -406,6 +439,12 @@ impl PanelDb {
         conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS idx_panel_users_account ON panel_users(account);
              CREATE INDEX IF NOT EXISTS idx_panel_users_email_lower ON panel_users(lower(email));",
+        )?;
+        deduplicate_panel_emails(&conn)?;
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_panel_users_email_lower_unique \
+             ON panel_users(lower(email))",
+            [],
         )?;
         drop(conn);
         db.ensure_default_package()?;
@@ -535,7 +574,8 @@ impl PanelDb {
             "INSERT INTO panel_users (id, username, email, password_hash, role, active, created_at, updated_at, account, locale) \
              VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, NULL)",
             params![id, username, email, hash, role.as_str(), now, account],
-        )?;
+        )
+        .map_err(email_conflict)?;
         Ok(UserView {
             id,
             username: username.to_string(),
@@ -694,10 +734,12 @@ impl PanelDb {
                 "email is already used by another panel user".into(),
             ));
         }
-        let changed = conn.execute(
-            "UPDATE panel_users SET email = ?2, updated_at = ?3 WHERE username = ?1",
-            params![username, email, now_rfc3339()],
-        )?;
+        let changed = conn
+            .execute(
+                "UPDATE panel_users SET email = ?2, updated_at = ?3 WHERE username = ?1",
+                params![username, email, now_rfc3339()],
+            )
+            .map_err(email_conflict)?;
         if changed == 0 {
             return Err(PanelError::NotFound(username.into()));
         }
@@ -1788,6 +1830,37 @@ mod tests {
 
         db.create_session(&admin.id, 3600, "", "", None).unwrap();
         assert_eq!(db.latest_admin_locale().unwrap().as_deref(), Some("es"));
+    }
+
+    #[test]
+    fn email_uniqueness_is_case_insensitive_and_enforced_by_index() {
+        let (_dir, db) = temp_db();
+        db.create_user(
+            "admin",
+            "Admin@Example.com",
+            "Very-Strong-Pass1",
+            Role::Owner,
+        )
+        .unwrap();
+        assert!(matches!(
+            db.create_user(
+                "other",
+                "admin@example.com",
+                "Very-Strong-Pass1",
+                Role::Viewer
+            ),
+            Err(PanelError::Conflict(_))
+        ));
+        let conn = db.conn().unwrap();
+        let indexes: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master \
+                 WHERE type = 'index' AND name = 'idx_panel_users_email_lower_unique'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(indexes, 1);
     }
 
     #[test]

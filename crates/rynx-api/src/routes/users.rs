@@ -65,23 +65,28 @@ pub async fn create(
     if role == Role::Owner && !auth.is_owner() {
         return Err(ApiError::Forbidden);
     }
-    if account_with_email(&state, &body.email, &auth.user.username)
-        .await?
-        .is_some()
-    {
-        return Err(ApiError::Conflict(
-            "Ese email ya está en uso por una cuenta de hosting.".into(),
-        ));
-    }
-    let policy =
-        rynx_core::PasswordPolicy::new(state.cfg.password_min_len, state.cfg.password_min_classes);
-    let mut user = state.db.create_user_with_policy(
-        &policy,
-        &body.username,
-        &body.email,
-        &body.password,
-        role,
-    )?;
+    let mut user = {
+        let _guard = state.identity_lock.lock().await;
+        if account_with_email(&state, &body.email, &auth.user.username)
+            .await?
+            .is_some()
+        {
+            return Err(ApiError::Conflict(
+                "Ese email ya está en uso por una cuenta de hosting.".into(),
+            ));
+        }
+        let policy = rynx_core::PasswordPolicy::new(
+            state.cfg.password_min_len,
+            state.cfg.password_min_classes,
+        );
+        state.db.create_user_with_policy(
+            &policy,
+            &body.username,
+            &body.email,
+            &body.password,
+            role,
+        )?
+    };
     if user.locale.is_none() {
         if let Some(locale) = auth.user.locale.clone() {
             state.db.set_user_locale(&user.username, Some(&locale))?;
@@ -114,6 +119,7 @@ pub async fn update(
 ) -> Result<Json<UserView>, ApiError> {
     auth.require_admin()?;
     auth.require_global()?;
+    let _identity_guard = state.identity_lock.lock().await;
     let target = state
         .db
         .find_user(&username)?

@@ -22,4 +22,7 @@ pub struct ApiState {
     pub mailer: Option<Arc<Mailer>>,
     pub two_factor: Arc<TwoFactor>,
     pub agent_lock: Arc<tokio::sync::Mutex<()>>,
+    /// Serializes panel-user and hosting-account creation so email and
+    /// username uniqueness checks cannot race across the two databases.
+    pub identity_lock: Arc<tokio::sync::Mutex<()>>,
 }

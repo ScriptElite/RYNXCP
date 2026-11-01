@@ -87,6 +87,7 @@ pub async fn create(
 ) -> Result<Json<CreateAccountResponse>, ApiError> {
     auth.require_write()?;
     auth.require_global()?;
+    let _identity_guard = state.identity_lock.lock().await;
     let mut spec = body.spec;
 
     if let Some(role) = body.panel_role {

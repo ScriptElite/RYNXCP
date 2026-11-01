@@ -92,6 +92,7 @@ async fn main() -> Result<()> {
         mailer,
         two_factor: Arc::new(Default::default()),
         agent_lock: Arc::new(tokio::sync::Mutex::new(())),
+        identity_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
 
     if args.check {
