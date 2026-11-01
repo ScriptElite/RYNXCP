@@ -628,6 +628,24 @@ fn set_owner_mode(fd: std::os::fd::RawFd, uid: u32, gid: u32, mode: u32) -> Exec
     set_mode(fd, mode)
 }
 
+async fn write_ssh_keys(home: &Path, username: &str, keys: &[String]) -> ExecResult<()> {
+    let owner = User::from_name(username)
+        .map_err(|err| ExecError::Io(err.to_string()))?
+        .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?;
+    let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
+    let dir = home.join(".ssh");
+    std::fs::create_dir_all(&dir)?;
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
+    let file = dir.join("authorized_keys");
+    let mut content = keys.join("\n");
+    if !content.is_empty() {
+        content.push('\n');
+    }
+    std::fs::write(&file, content)?;
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600))?;
+    Ok(())
+}
+
 #[async_trait]
 impl Executor for RealExecutor {
     fn mode(&self) -> &'static str {
@@ -821,7 +839,8 @@ impl Executor for RealExecutor {
             return Ok(());
         }
         keys.push(key.to_string());
-        self.write_ssh_keys(username, &keys).await
+        let home = self.home(username);
+        write_ssh_keys(&home, username, &keys).await
     }
 
     async fn remove_ssh_key(&self, username: &str, key: &str) -> ExecResult<()> {
@@ -831,26 +850,8 @@ impl Executor for RealExecutor {
             .into_iter()
             .filter(|existing| existing != key)
             .collect();
-        self.write_ssh_keys(username, &keys).await
-    }
-
-    async fn write_ssh_keys(&self, username: &str, keys: &[String]) -> ExecResult<()> {
         let home = self.home(username);
-        let owner = User::from_name(username)
-            .map_err(|err| ExecError::Io(err.to_string()))?
-            .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?;
-        let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
-        let dir = home.join(".ssh");
-        std::fs::create_dir_all(&dir)?;
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
-        let file = dir.join("authorized_keys");
-        let mut content = keys.join("\n");
-        if !content.is_empty() {
-            content.push('\n');
-        }
-        std::fs::write(&file, content)?;
-        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600))?;
-        Ok(())
+        write_ssh_keys(&home, username, &keys).await
     }
 
     async fn remove_website_root(&self, username: &str, relative: &str) -> ExecResult<()> {
