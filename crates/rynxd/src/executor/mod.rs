@@ -288,6 +288,7 @@ pub trait Executor: Send + Sync {
     async fn restore_backup(&self, archive: &Path, username: &str, uid: u32) -> ExecResult<()>;
     async fn delete_backup_file(&self, path: &Path) -> ExecResult<()>;
     async fn repair_backup_permissions(&self, path: &Path) -> ExecResult<()>;
+    async fn offsite_backup(&self, path: &Path, tag: &str) -> ExecResult<bool>;
     async fn remove_backup_dir(&self, username: &str) -> ExecResult<()>;
     async fn apply_cron(&self, username: &str, content: &str) -> ExecResult<()>;
 

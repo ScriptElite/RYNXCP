@@ -61,6 +61,11 @@ pub struct DaemonConfig {
     pub backup_retention: usize,
     /// Shared directory where the API stages verified installer archives.
     pub installer_staging: PathBuf,
+    /// Encrypted offsite copies through restic (S3, B2, SFTP, ...).
+    pub offsite_enabled: bool,
+    pub offsite_repository: String,
+    pub offsite_password_file: Option<PathBuf>,
+    pub restic_bin: String,
     /// Per-account resource limits enforced by the reconciler.
     pub max_websites_per_account: usize,
     pub max_apps_per_account: usize,
@@ -135,6 +140,10 @@ impl Default for DaemonConfig {
                 backup_dir: root.join("backups"),
                 backup_retention: 7,
                 installer_staging: root.join("installer-staging"),
+                offsite_enabled: false,
+                offsite_repository: String::new(),
+                offsite_password_file: None,
+                restic_bin: "restic".into(),
                 max_websites_per_account: 50,
                 max_apps_per_account: 20,
                 dns_enabled: true,
@@ -206,6 +215,10 @@ impl Default for DaemonConfig {
                 backup_dir: PathBuf::from("/var/backups/rynxcp"),
                 backup_retention: 7,
                 installer_staging: PathBuf::from("/var/lib/rynxcp/staging"),
+                offsite_enabled: false,
+                offsite_repository: String::new(),
+                offsite_password_file: None,
+                restic_bin: "restic".into(),
                 max_websites_per_account: 50,
                 max_apps_per_account: 20,
                 dns_enabled: false,

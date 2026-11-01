@@ -719,6 +719,10 @@ impl Executor for SimExecutor {
         Ok(())
     }
 
+    async fn offsite_backup(&self, _path: &Path, _tag: &str) -> ExecResult<bool> {
+        Ok(self.cfg.offsite_enabled)
+    }
+
     async fn apply_cron(&self, username: &str, content: &str) -> ExecResult<()> {
         let dir = self.cfg.state_dir.join("sim-cron");
         std::fs::create_dir_all(&dir)?;

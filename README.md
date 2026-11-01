@@ -668,6 +668,13 @@ daemon retention is 7; the package `backups` field (1-3) caps how many backups a
 account can create. Backups can be restored from the UI, and a systemd timer runs
 them daily.
 
+**Encrypted offsite copies** are optional. Set `offsite_enabled = true`, a
+`restic` repository (`offsite_repository`, for example
+`s3:https://s3.example.com/bucket`) and a root-only password file
+(`offsite_password_file`, mode `0600`). Every backup is also pushed with restic,
+which encrypts it before it leaves the server. The local backup is kept even if
+the offsite upload fails; failures are logged and do not block the backup.
+
 Restore only extracts managed paths (`home/<account>`, nginx, php, systemd, apps),
 rejects `..` and absolute paths, and re-applies desired state afterwards.
 

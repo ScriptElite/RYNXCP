@@ -1969,6 +1969,13 @@ impl Reconciler {
             .repair_backup_permissions(&dest)
             .await
             .map_err(exec_error)?;
+        let offsite = match self.exec.offsite_backup(&dest, username).await {
+            Ok(uploaded) => uploaded,
+            Err(err) => {
+                tracing::warn!(username, error = %err, "offsite backup failed");
+                false
+            }
+        };
         let view = BackupView {
             id: id.clone(),
             username: username.to_string(),
@@ -1994,7 +2001,7 @@ impl Reconciler {
             actor,
             "backup.create",
             &format!("{username}/{id}"),
-            &format!("bytes={size} paths={}", paths.len()),
+            &format!("bytes={size} paths={} offsite={offsite}", paths.len()),
         )?;
         let _ = account;
         Ok(Response::Backup { backup: view })

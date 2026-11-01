@@ -1725,6 +1725,60 @@ impl Executor for RealExecutor {
         Ok(())
     }
 
+    async fn offsite_backup(&self, path: &Path, tag: &str) -> ExecResult<bool> {
+        if !self.cfg.offsite_enabled {
+            return Ok(false);
+        }
+        let repository = self.cfg.offsite_repository.trim();
+        if repository.is_empty() || repository.chars().any(|ch| ch.is_control()) {
+            return Err(ExecError::InvalidInput(
+                "offsite_repository is required and must be a single value".into(),
+            ));
+        }
+        let password_file = self
+            .cfg
+            .offsite_password_file
+            .as_ref()
+            .filter(|path| !path.as_os_str().is_empty())
+            .ok_or_else(|| ExecError::InvalidInput("offsite_password_file is required".into()))?;
+        let meta = std::fs::metadata(password_file).map_err(|err| {
+            ExecError::Io(format!("cannot read {}: {err}", password_file.display()))
+        })?;
+        if meta.permissions().mode() & 0o077 != 0 {
+            return Err(ExecError::InvalidInput(
+                "offsite_password_file must not be readable by other users".into(),
+            ));
+        }
+        let bin = {
+            let value = self.cfg.restic_bin.trim();
+            if value.is_empty() {
+                "restic"
+            } else {
+                value
+            }
+        };
+        let mut base = vec![
+            format!("RESTIC_REPOSITORY={repository}"),
+            format!("RESTIC_PASSWORD_FILE={}", password_file.display()),
+            bin.to_string(),
+        ];
+        let mut snapshots = base.clone();
+        snapshots.push("snapshots".into());
+        snapshots.push("--no-cache".into());
+        if run_owned("/usr/bin/env", &snapshots).await.is_err() {
+            let mut init = base.clone();
+            init.push("init".into());
+            run_owned("/usr/bin/env", &init).await?;
+        }
+        base.push("backup".into());
+        base.push(path.display().to_string());
+        base.push("--tag".into());
+        base.push(tag.to_string());
+        base.push("--no-cache".into());
+        run_owned("/usr/bin/env", &base).await?;
+        Ok(true)
+    }
+
     async fn delete_backup_file(&self, path: &Path) -> ExecResult<()> {
         let root = std::fs::canonicalize(&self.cfg.backup_dir)
             .unwrap_or_else(|_| self.cfg.backup_dir.clone());

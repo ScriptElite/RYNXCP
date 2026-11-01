@@ -38,6 +38,10 @@ systemd_dir = "/etc/systemd/system"
 backup_dir = "/var/backups/rynxcp"
 backup_retention = 7
 installer_staging = "/var/lib/rynxcp/staging"
+offsite_enabled = false
+offsite_repository = ""
+offsite_password_file = ""
+restic_bin = "restic"
 
 # ---- user rules / limits ----
 max_websites_per_account = 50
