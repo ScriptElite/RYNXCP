@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   rust:
@@ -39,6 +39,16 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
           exit "$status"
+      - name: Publish clippy log
+        if: failure()
+        run: |
+          cp /tmp/clippy.log ci-clippy.log
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git checkout -B ci-clippy-log
+          git add ci-clippy.log
+          git commit -m "CI clippy log"
+          git push --force origin ci-clippy-log
       - name: Tests
         run: cargo test --workspace
       - name: Build
