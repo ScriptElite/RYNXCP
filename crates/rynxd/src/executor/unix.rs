@@ -607,7 +607,7 @@ fn set_owner_mode(fd: std::os::fd::RawFd, uid: u32, gid: u32, mode: u32) -> Exec
     let rc = unsafe {
         libc::fchownat(
             fd,
-            b"\0".as_ptr().cast(),
+            c"".as_ptr(),
             uid as libc::uid_t,
             gid as libc::gid_t,
             libc::AT_EMPTY_PATH,
@@ -1280,7 +1280,7 @@ impl Executor for RealExecutor {
             &self.cfg.app_env_dir.join(env_filename),
         );
         let _ = run("systemctl", &["daemon-reload"]).await;
-        if purge && working_dir.starts_with(&self.home(username)) {
+        if purge && working_dir.starts_with(self.home(username)) {
             let _ = std::fs::remove_dir_all(working_dir);
         }
         Ok(())
