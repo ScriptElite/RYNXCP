@@ -139,50 +139,6 @@ impl RealExecutor {
         Ok(())
     }
 
-    async fn apply_disk_quota(&self, username: &str, limit_mb: u64) -> ExecResult<bool> {
-        if limit_mb == 0 || limit_mb >= rynx_core::MAX_DISK_LIMIT_MB {
-            return Ok(true);
-        }
-        let home = self.home(username).display().to_string();
-        let output = run("findmnt", &["-n", "-o", "TARGET,FSTYPE", "-T", &home]).await?;
-        let Some(line) = output.lines().next() else {
-            return Ok(false);
-        };
-        let mut fields = line.split_whitespace();
-        let Some(mount) = fields.next() else {
-            return Ok(false);
-        };
-        let Some(fstype) = fields.next() else {
-            return Ok(false);
-        };
-        match fstype {
-            "ext2" | "ext3" | "ext4" => {
-                let blocks = limit_mb.saturating_mul(1024).to_string();
-                run(
-                    "setquota",
-                    &["-u", username, &blocks, &blocks, "0", "0", mount],
-                )
-                .await?;
-                Ok(true)
-            }
-            "xfs" => {
-                let limit = format!("{limit_mb}m");
-                run(
-                    "xfs_quota",
-                    &[
-                        "-x",
-                        "-c",
-                        &format!("limit -u bsoft={limit} bhard={limit} {username}"),
-                        mount,
-                    ],
-                )
-                .await?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
     async fn nginx_test(&self) -> ExecResult<()> {
         let args: Vec<String> = self
             .cfg
@@ -921,21 +877,6 @@ impl Executor for RealExecutor {
             }
         }
         let _ = std::fs::remove_dir_all(home.join(".php"));
-        match self
-            .apply_disk_quota(&spec.username, spec.disk_limit_mb)
-            .await
-        {
-            Ok(true) => {}
-            Ok(false) => tracing::warn!(
-                account = %spec.username,
-                "disk quota is not supported by the account filesystem"
-            ),
-            Err(err) => tracing::warn!(
-                account = %spec.username,
-                error = %err,
-                "disk quota could not be applied"
-            ),
-        }
         if let Err(err) = self
             .apply_user_slice(
                 account_uid,

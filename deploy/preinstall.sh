@@ -540,7 +540,7 @@ apt-get install -y --no-install-recommends \
   php8.5-fpm php8.5-cli php8.5-common php8.5-mysql php8.5-curl php8.5-mbstring \
   php8.5-xml php8.5-zip php8.5-gd php8.5-intl php8.5-bcmath \
   composer unzip mariadb-server bind9 bind9-utils bind9-dnsutils \
-  pure-ftpd opendkim opendkim-tools cron quota xfsprogs \
+  pure-ftpd opendkim opendkim-tools cron \
   clamav clamav-daemon clamav-freshclam clamav-milter \
   spamassassin spamd spamc spamass-milter \
   nodejs npm python3 python3-venv python3-pip ruby-full default-jre-headless golang-go
@@ -590,55 +590,6 @@ if ! command -v dotnet >/dev/null 2>&1; then
   else
     warn ".NET SDK is not available for $DISTRO_ID $VERSION_ID; install it manually if needed"
   fi
-fi
-
-# ---------------------------------------------------------------------------
-# Per-account disk quotas
-# ---------------------------------------------------------------------------
-configure_disk_quotas() {
-  local target="" source="" fstype=""
-  command -v findmnt >/dev/null 2>&1 || return 1
-  read -r target source fstype < <(findmnt -n -o TARGET,SOURCE,FSTYPE -T /home 2>/dev/null || true)
-  if [[ -z "$target" ]]; then
-    read -r target source fstype < <(findmnt -n -o TARGET,SOURCE,FSTYPE -T / 2>/dev/null || true)
-  fi
-  [[ -n "$target" && -n "$source" && -n "$fstype" ]] || return 1
-  case "$fstype" in
-    ext2|ext3|ext4)
-      command -v tune2fs >/dev/null 2>&1 || return 1
-      command -v setquota >/dev/null 2>&1 || return 1
-      if ! tune2fs -l "$source" 2>/dev/null | grep -q 'quota'; then
-        if ! tune2fs -O quota "$source" >>"$LOG" 2>&1; then
-          warn "the ext4 quota feature on $source can only be enabled with the filesystem unmounted"
-          warn "use rescue mode to run: tune2fs -O quota $source, or use a separate ext4 volume created with mkfs.ext4 -O quota"
-          return 1
-        fi
-      fi
-      mount -o remount,quota "$target" >>"$LOG" 2>&1 || {
-        warn "the filesystem $target could not be remounted with quotas"
-        return 1
-      }
-      quotaon "$target" >>"$LOG" 2>&1 || true
-      ;;
-    xfs)
-      command -v xfs_quota >/dev/null 2>&1 || return 1
-      mount -o remount,uquota "$target" >/dev/null 2>&1 || {
-        warn "the XFS filesystem $target could not be remounted with quotas"
-        return 1
-      }
-      ;;
-    *)
-      warn "disk quotas are not available on $fstype ($target)"
-      return 1
-      ;;
-  esac
-}
-
-log "Configuring filesystem disk quotas"
-if configure_disk_quotas; then
-  log "Disk quotas are enabled for hosting accounts"
-else
-  warn "disk quotas are unavailable; account_mb will not be enforced by the kernel"
 fi
 
 # ---------------------------------------------------------------------------

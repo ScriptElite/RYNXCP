@@ -15,7 +15,7 @@ panel stack:
 - ClamAV for SMTP and daily filesystem scans, plus SpamAssassin SMTP scoring.
 - Optional AI agent with local Ollama and/or an explicitly enabled external provider.
 - Hosting packages with the seeded **Por defecto** plan.
-- Per-account disk quotas on ext4/XFS, applied by `rynxd` from the package limit.
+- Per-account cgroup limits for RAM, CPU and processes.
 - The per-site file manager and phpMyAdmin behind the panel login.
 - Let's Encrypt, backup and antivirus timers.
 
