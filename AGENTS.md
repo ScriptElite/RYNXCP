@@ -21,6 +21,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo build --workspace
+node scripts/check-i18n.js
 powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1
 ```
 
