@@ -91,45 +91,52 @@ impl RealExecutor {
         write_managed(&self.cfg.systemd_dir, &path, &body, 0o644, Some((0, 0)))?;
         run("systemctl", &["daemon-reload"]).await?;
         run("systemctl", &["start", &unit]).await?;
-        let mut args = vec![
-            "set-property".to_string(),
-            "--runtime".to_string(),
-            unit.clone(),
-            format!(
-                "MemoryMax={}",
-                if memory_mb > 0 {
-                    format!("{memory_mb}M")
-                } else {
-                    "infinity".to_string()
-                }
-            ),
-            format!(
-                "MemorySwapMax={}",
-                if memory_mb > 0 {
-                    "0".to_string()
-                } else {
-                    "infinity".to_string()
-                }
-            ),
-            format!(
-                "TasksMax={}",
-                if process_limit > 0 {
-                    process_limit.to_string()
-                } else {
-                    "infinity".to_string()
-                }
-            ),
-        ];
-        args.push(format!(
-            "CPUQuota={}",
-            if cpu_percent > 0 {
-                format!("{cpu_percent}%")
-            } else {
-                String::new()
-            }
-        ));
-        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
-        run("systemctl", &refs).await.map(|_| ())
+        let memory = if memory_mb > 0 {
+            format!("{memory_mb}M")
+        } else {
+            "infinity".to_string()
+        };
+        let swap = if memory_mb > 0 {
+            "0".to_string()
+        } else {
+            "infinity".to_string()
+        };
+        let tasks = if process_limit > 0 {
+            process_limit.to_string()
+        } else {
+            "infinity".to_string()
+        };
+        run(
+            "systemctl",
+            &[
+                "set-property",
+                "--runtime",
+                &unit,
+                &format!("MemoryMax={memory}"),
+                &format!("MemorySwapMax={swap}"),
+                &format!("TasksMax={tasks}"),
+            ],
+        )
+        .await?;
+        if cpu_percent > 0 {
+            run(
+                "systemctl",
+                &[
+                    "set-property",
+                    "--runtime",
+                    &unit,
+                    &format!("CPUQuota={cpu_percent}%"),
+                ],
+            )
+            .await?;
+        } else {
+            let _ = run(
+                "systemctl",
+                &["set-property", "--runtime", &unit, "CPUQuota="],
+            )
+            .await;
+        }
+        Ok(())
     }
 
     async fn apply_disk_quota(&self, username: &str, limit_mb: u64) -> ExecResult<bool> {
