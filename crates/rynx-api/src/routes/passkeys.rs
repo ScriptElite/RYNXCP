@@ -2,10 +2,13 @@ use axum::extract::{ConnectInfo, Path, State};
 use axum::http::HeaderMap;
 use axum::response::Response;
 use axum::{Extension, Json};
+use base64::Engine as _;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;
-use webauthn_rs::prelude::{Passkey, PublicKeyCredential, RegisterPublicKeyCredential};
+use webauthn_rs::prelude::{
+    CredentialID, Passkey, PublicKeyCredential, RegisterPublicKeyCredential,
+};
 use webauthn_rs::Webauthn;
 
 use crate::auth::AuthUser;
@@ -41,6 +44,10 @@ fn webauthn(state: &ApiState) -> Result<&Webauthn, ApiError> {
         .webauthn
         .as_deref()
         .ok_or_else(|| ApiError::Conflict("passkeys are not available; HTTPS is required".into()))
+}
+
+fn credential_key(credential_id: &CredentialID) -> String {
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(credential_id.as_ref())
 }
 
 fn parse_credentials(state: &ApiState, user_id: &str) -> Result<Vec<Passkey>, ApiError> {
@@ -117,7 +124,7 @@ pub async fn finish_registration(
     let view = state.db.create_passkey(
         &auth.user.id,
         &flow.name,
-        &passkey.cred_id().to_string(),
+        &credential_key(passkey.cred_id()),
         &credential,
     )?;
     Ok(Json(json!({ "passkey": view })))
@@ -194,7 +201,7 @@ pub async fn login_finish(
     if user.id != flow.user_id {
         return Err(ApiError::Unauthorized);
     }
-    let credential_id = result.cred_id().to_string();
+    let credential_id = credential_key(result.cred_id());
     let stored = state.db.list_passkey_credentials(&user.id)?;
     let Some(stored) = stored
         .into_iter()
@@ -224,7 +231,7 @@ pub async fn login_finish(
         "success",
         "passkey",
     );
-    crate::routes::session::finish_login(&state, user, &ip, &headers, None).await
+    crate::routes::session::finish_login(&state, user, &ip, &headers, None)
 }
 
 fn record_failure(
