@@ -2574,12 +2574,14 @@ function showCertJob(job, domain, options = {}) {
 /* ---------------- users ---------------- */
 
 async function renderApi() {
-  const [tokensData, sessionsData] = await Promise.all([
+  const [tokensData, sessionsData, webhooksData] = await Promise.all([
     api('/api/v1/tokens'),
     api('/api/v1/sessions'),
+    api('/api/v1/webhooks'),
   ]);
   const tokens = tokensData.tokens || [];
   const sessions = sessionsData.sessions || [];
+  const webhooks = webhooksData.webhooks || [];
   const tokenRows = tokens.map((token) => [
     td(`<div class="cell-title">${esc(token.name)}</div>`),
     td(esc(fmtDate(token.created_at))),
@@ -2594,11 +2596,20 @@ async function renderApi() {
     td(esc(fmtDate(new Date(session.last_seen * 1000).toISOString()))),
     td(session.current ? '' : btn('Revocar', 'session-revoke', session.id, 'tiny danger'), 'actions'),
   ]);
+  const webhookRows = webhooks.map((hook) => [
+    td(`<div class="cell-title">${esc(hook.name)}</div><div class="cell-sub mono">${esc(hook.url)}</div>`),
+    td(`<span class="muted small">${esc((hook.events || []).join(', '))}</span>`),
+    td(hook.enabled ? badge('activo', 'ok') : badge('deshabilitado', 'warn')),
+    td(esc(fmtDate(hook.created_at))),
+    td(btn('Eliminar', 'webhook-delete', hook.id, 'tiny danger'), 'actions'),
+  ]);
   $('#view').innerHTML =
     sectionHead('Tokens API', '<button class="btn primary" data-action="token-new">Nuevo token</button>') +
     table(['Nombre', 'Creado', 'Último uso', ''], tokenRows, 'Sin tokens API.') +
     sectionHead('Sesiones activas', '<button class="btn ghost" data-action="sessions-revoke-others">Cerrar las demás</button>') +
-    table(['', 'IP', 'Dispositivo', 'Creada', 'Último acceso', ''], sessionRows, 'Sin sesiones activas.');
+    table(['', 'IP', 'Dispositivo', 'Creada', 'Último acceso', ''], sessionRows, 'Sin sesiones activas.') +
+    sectionHead('Webhooks', '<button class="btn primary" data-action="webhook-new">Nuevo webhook</button>') +
+    table(['Nombre', 'Eventos', 'Estado', 'Creado', ''], webhookRows, 'Sin webhooks.');
 }
 
 function openTokenModal() {
@@ -2614,6 +2625,37 @@ function openTokenModal() {
       showOutput(
         T('Token creado'),
         `${T('Token')}: ${result.token}\n\n${T('Guarda este token ahora; no se volverá a mostrar.')}`,
+      );
+      await refresh();
+    },
+  });
+}
+
+function openWebhookModal() {
+  openModal({
+    title: 'Nuevo webhook',
+    submitLabel: 'Crear webhook',
+    html: `<div class="form-grid">
+      ${fInput('name', 'Nombre del webhook', { placeholder: 'alertas-slack', required: true })}
+      ${fInput('url', 'URL del webhook', { type: 'url', placeholder: 'https://example.com/hook', required: true, help: 'Debe ser HTTPS y resolverse a una dirección pública.' })}
+      ${fInput('events', 'Eventos', { value: 'agent.alert', required: true, help: 'Separados por comas: agent.alert, certificate.issued, certificate.failed, backup.created, website.cloned' })}
+    </div>`,
+    onSubmit: async (form) => {
+      const events = val(form, 'events')
+        .split(',')
+        .map((event) => event.trim())
+        .filter(Boolean);
+      const result = await api('/api/v1/webhooks', {
+        method: 'POST',
+        body: {
+          name: val(form, 'name').trim(),
+          url: val(form, 'url').trim(),
+          events,
+        },
+      });
+      showOutput(
+        T('Webhook creado'),
+        `${T('Secreto')}: ${result.secret}\n\n${T('Guarda este secreto ahora; no se volverá a mostrar.')}`,
       );
       await refresh();
     },
@@ -3133,6 +3175,14 @@ async function handleAction(action, id) {
       if (!confirm(T('¿Cerrar todas las sesiones excepto la actual?'))) return;
       const result = await api('/api/v1/sessions/revoke-others', { method: 'POST' });
       toast(TF('Sesiones cerradas: {count}', { count: result.revoked || 0 }));
+      return refresh();
+    }
+    case 'webhook-new':
+      return openWebhookModal();
+    case 'webhook-delete': {
+      if (!confirm(T('¿Eliminar este webhook?'))) return;
+      await api(`/api/v1/webhooks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast(T('Webhook eliminado'));
       return refresh();
     }
     case 'user-new':

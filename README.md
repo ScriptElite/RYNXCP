@@ -72,7 +72,7 @@ reconciliation engine and UI are original.
 | Console | Closed-list privileged actions with output and audit trail |
 | Programs | Installed software, live service state, restart/stop controls, pending updates and upgrade button |
 | Users | owner/admin/operator/viewer roles, audited impersonation and revocation |
-| API | Personal API tokens (Bearer) and active session management |
+| API | Personal API tokens (Bearer), active sessions and signed outbound webhooks |
 | Logs | Per-site Nginx access/error logs and PHP error log tail |
 | Mail queue | Inspect, flush, hold and delete Postfix queue messages |
 | Packages | Reusable plans with enforced website+app, alias, mail, database, FTP and backup limits, templates and a seeded editable default |
@@ -328,6 +328,12 @@ Compromising the web API does not grant direct write access to hosting state.
   Users can list and revoke their active sessions from the **API** view.
 - **API tokens**: personal `rynx_…` Bearer tokens stored only as SHA-256 hashes,
   revocable from the **API** view; mutations do not require a CSRF header.
+- **Webhooks**: per-user HTTPS endpoints for `agent.alert`,
+  `certificate.issued`, `certificate.failed`, `backup.created` and
+  `website.cloned`. Deliveries are JSON POSTs signed with HMAC-SHA256 in
+  `x-rynx-signature` (`sha256=<hex>`); the event name is sent in `x-rynx-event`.
+  Secrets are shown once at creation, and endpoint hosts must resolve only to
+  public addresses (no loopback, private or link-local targets).
 - **Email two-factor authentication**: when SMTP is configured, login sends a
   single-use six-digit code valid for 10 minutes (five attempts per challenge).
   The code email uses the user's saved language.
@@ -934,6 +940,7 @@ POST   /api/v1/auth/logout
 GET    /api/v1/auth/me
 PUT    /api/v1/auth/locale
 GET|POST /api/v1/tokens             DELETE /api/v1/tokens/{id}
+GET|POST /api/v1/webhooks           DELETE /api/v1/webhooks/{id}
 GET    /api/v1/sessions             DELETE /api/v1/sessions/{id}
 POST   /api/v1/sessions/revoke-others
 POST   /api/v1/auth/stop-impersonation

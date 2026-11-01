@@ -32,6 +32,7 @@ pub mod ssh;
 pub mod system;
 pub mod tokens;
 pub mod users;
+pub mod webhooks;
 pub mod websites;
 
 async fn api_not_found() -> crate::error::ApiError {
@@ -49,6 +50,11 @@ pub fn router(state: ApiState) -> Router {
         )
         .route("/api/v1/tokens", get(tokens::list).post(tokens::create))
         .route("/api/v1/tokens/{id}", delete(tokens::revoke))
+        .route(
+            "/api/v1/webhooks",
+            get(webhooks::list).post(webhooks::create),
+        )
+        .route("/api/v1/webhooks/{id}", delete(webhooks::delete))
         .route("/api/v1/sessions", get(tokens::sessions))
         .route("/api/v1/sessions/{id}", delete(tokens::revoke_session))
         .route(

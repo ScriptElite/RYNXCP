@@ -130,6 +130,20 @@ try {
     $null = RequestJson 'DELETE' "/api/v1/sessions/$($other.id)"
     ExpectStatus 401 { Invoke-RestMethod -Uri "$base/api/v1/auth/me" -WebSession $sess2 }
 
+    Write-Host '==> Webhooks'
+    $hook = PostJson '/api/v1/webhooks' @{
+        name = 'smoke'
+        url = 'https://1.1.1.1/hook'
+        events = @('agent.alert')
+    }
+    if (-not $hook.secret -or $hook.webhook.events -notcontains 'agent.alert') {
+        throw 'webhook was not created with a secret'
+    }
+    $hookList = RequestJson 'GET' '/api/v1/webhooks'
+    if (@($hookList.webhooks).id -notcontains $hook.webhook.id) { throw 'webhook was not listed' }
+    $null = RequestJson 'DELETE' "/api/v1/webhooks/$($hook.webhook.id)"
+    ExpectStatus 400 { PostJson '/api/v1/webhooks' @{ name = 'bad'; url = 'http://example.com/hook'; events = @('agent.alert') } }
+
     $seedPackages = @(RequestJson 'GET' '/api/v1/packages')
     if ($seedPackages.Count -lt 1 -or -not $seedPackages[0].is_default) {
         throw 'the default package was not seeded'

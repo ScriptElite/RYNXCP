@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id);
 
+CREATE TABLE IF NOT EXISTS webhooks (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES panel_users(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    url        TEXT NOT NULL,
+    secret     TEXT NOT NULL,
+    events     TEXT NOT NULL,
+    enabled    INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webhooks_user ON webhooks(user_id);
+
 CREATE TABLE IF NOT EXISTS password_resets (
     token_hash  TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL REFERENCES panel_users(id) ON DELETE CASCADE,
@@ -204,6 +216,22 @@ pub struct ApiTokenView {
     pub name: String,
     pub created_at: String,
     pub last_used_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct WebhookView {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+    pub events: Vec<String>,
+    pub enabled: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct WebhookTarget {
+    pub url: String,
+    pub secret: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -868,6 +896,89 @@ impl PanelDb {
             );
         }
         Ok(user)
+    }
+
+    pub fn create_webhook(
+        &self,
+        user_id: &str,
+        name: &str,
+        url: &str,
+        events: &[String],
+        secret: &str,
+    ) -> Result<WebhookView, PanelError> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let created_at = now_rfc3339();
+        let events_json =
+            serde_json::to_string(events).map_err(|err| PanelError::Validation(err.to_string()))?;
+        let conn = self.conn()?;
+        conn.execute(
+            "INSERT INTO webhooks (id, user_id, name, url, secret, events, enabled, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7)",
+            params![id, user_id, name, url, secret, events_json, created_at],
+        )?;
+        Ok(WebhookView {
+            id,
+            name: name.to_string(),
+            url: url.to_string(),
+            events: events.to_vec(),
+            enabled: true,
+            created_at,
+        })
+    }
+
+    pub fn list_webhooks(&self, user_id: &str) -> Result<Vec<WebhookView>, PanelError> {
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, url, events, enabled, created_at \
+             FROM webhooks WHERE user_id = ?1 ORDER BY created_at DESC",
+        )?;
+        let rows = stmt.query_map(params![user_id], |row| {
+            let events_raw: String = row.get(3)?;
+            Ok(WebhookView {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                url: row.get(2)?,
+                events: serde_json::from_str(&events_raw).unwrap_or_default(),
+                enabled: row.get::<_, i64>(4)? != 0,
+                created_at: row.get(5)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
+    pub fn delete_webhook(&self, user_id: &str, id: &str) -> Result<bool, PanelError> {
+        let conn = self.conn()?;
+        let changed = conn.execute(
+            "DELETE FROM webhooks WHERE id = ?1 AND user_id = ?2",
+            params![id, user_id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn webhooks_for_event(&self, event: &str) -> Result<Vec<WebhookTarget>, PanelError> {
+        let conn = self.conn()?;
+        let mut stmt =
+            conn.prepare("SELECT url, secret, events FROM webhooks WHERE enabled = 1")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (url, secret, events_raw) = row?;
+            let events: Vec<String> = serde_json::from_str(&events_raw).unwrap_or_default();
+            if events.iter().any(|item| item == event) {
+                out.push(WebhookTarget { url, secret });
+            }
+        }
+        Ok(out)
     }
 
     pub fn list_user_sessions(&self, user_id: &str) -> Result<Vec<SessionView>, PanelError> {

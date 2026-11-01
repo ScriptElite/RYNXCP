@@ -104,6 +104,8 @@ pub async fn clone_site(
     if body.with_database {
         crate::limits::check_database(&state, &auth.user.username, &domain).await?;
     }
+    let source_domain = domain.clone();
+    let target_domain = target.clone();
     let response = state
         .daemon
         .call(
@@ -115,6 +117,15 @@ pub async fn clone_site(
             &auth.user.username,
         )
         .await?;
+    crate::webhooks::dispatch(
+        &state,
+        "website.cloned",
+        serde_json::json!({
+            "source": source_domain,
+            "target": target_domain,
+            "with_database": body.with_database,
+        }),
+    );
     Ok(Json(response))
 }
 

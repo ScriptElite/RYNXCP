@@ -38,15 +38,28 @@ pub async fn create(
     auth.require_write()?;
     auth.ensure_account(&body.username)?;
     crate::limits::check_backup(&state, &auth.user.username, &body.username).await?;
+    let username = body.username;
     let response = state
         .daemon
         .call(
             Request::BackupCreate {
-                username: body.username,
+                username: username.clone(),
             },
             &auth.user.username,
         )
         .await?;
+    if let DaemonResponse::Backup { backup } = &response {
+        crate::webhooks::dispatch(
+            &state,
+            "backup.created",
+            serde_json::json!({
+                "username": username,
+                "id": backup.id,
+                "size_bytes": backup.size_bytes,
+                "path": backup.path,
+            }),
+        );
+    }
     Ok(Json(response))
 }
 

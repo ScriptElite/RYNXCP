@@ -131,6 +131,23 @@ pub async fn run_once(state: &ApiState, locale: Option<String>) -> Result<RunSum
     if let Err(err) = state.db.record_agent_run(&run) {
         tracing::warn!(error = %err, "agent run could not be recorded");
     }
+    if !alerts.is_empty() {
+        crate::webhooks::dispatch(
+            state,
+            "agent.alert",
+            serde_json::json!({
+                "findings": alerts
+                    .iter()
+                    .map(|finding| serde_json::json!({
+                        "severity": finding.severity,
+                        "category": finding.category,
+                        "title": finding.title,
+                        "summary": finding.summary,
+                    }))
+                    .collect::<Vec<_>>(),
+            }),
+        );
+    }
     let notified = notify(state, &alerts, &locale).await;
 
     Ok(RunSummary {

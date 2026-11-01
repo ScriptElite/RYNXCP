@@ -117,6 +117,7 @@ async fn spawn(
         .and_then(|to| state.db.find_user_by_email(to).ok().flatten())
         .and_then(|user| user.locale);
     let actor = actor.to_string();
+    let webhook_state = state.clone();
     tokio::spawn(async move {
         let result = daemon.call(request, &actor).await;
         let outcome = {
@@ -146,6 +147,19 @@ async fn spawn(
                 job.view.message.clone(),
             )
         };
+
+        crate::webhooks::dispatch(
+            &webhook_state,
+            if outcome.0 == "failed" {
+                "certificate.failed"
+            } else {
+                "certificate.issued"
+            },
+            serde_json::json!({
+                "domain": outcome.1,
+                "message": outcome.2,
+            }),
+        );
 
         if outcome.0 == "failed" {
             tracing::warn!(
