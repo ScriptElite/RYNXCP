@@ -363,7 +363,7 @@ Compromising the web API does not grant direct write access to hosting state.
 
 | Runtime | Mechanism | Suggested versions |
 | --- | --- | --- |
-| PHP | Per-account FPM pool, `open_basedir`, dangerous functions disabled | 8.1 - 8.5 |
+| PHP | Per-account FPM service and cgroup, `open_basedir`, dangerous functions disabled | 8.1 - 8.5 |
 | Node.js | systemd + reverse proxy | 18, 20, 22, 24 |
 | Python | systemd + reverse proxy (gunicorn, uvicorn or python3) | 3.10 - 3.13 |
 | Ruby | puma / rackup under systemd | 3.2 - 3.4 |
@@ -378,6 +378,14 @@ systemd unit, a `0640` environment file and a vhost with security headers.
 PHP version selectors are populated from the PHP-FPM versions installed on the
 host. The one-shot installer installs PHP 8.5; 8.1-8.4 only appear when those
 versions are installed separately.
+
+Each hosting account gets its own `rynx-php-<account>.service` under systemd.
+The service runs only that account's pool, listens on its private socket and is
+placed in its own cgroup with `MemoryMax` (pool memory limit × workers),
+`CPUQuota` (workers × 100%) and `TasksMax` (workers + 16). The default shared
+`php8.5-fpm` service remains for webmail and panel components. Limits are
+derived from the **PHP pool** settings, so raising `max_children` or
+`memory_limit_mb` also raises the account's cgroup ceiling.
 
 Minimal application examples: [Node.js](docs/node-app.md),
 [Python](docs/python-app.md), [Ruby](docs/ruby-app.md), [Java](docs/java-app.md),

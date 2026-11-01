@@ -436,6 +436,8 @@ impl Executor for SimExecutor {
         username: &str,
         version: &str,
         content: &str,
+        _memory_limit_mb: u64,
+        _max_children: u16,
         enable: bool,
     ) -> ExecResult<()> {
         let dir = self
@@ -443,7 +445,7 @@ impl Executor for SimExecutor {
             .php_fpm_root
             .join(version)
             .join("fpm")
-            .join("pool.d");
+            .join("rynxcp");
         std::fs::create_dir_all(&dir)?;
         let path = dir.join(format!("rynx-{username}.conf"));
         if enable {
@@ -461,7 +463,7 @@ impl Executor for SimExecutor {
             .php_fpm_root
             .join(version)
             .join("fpm")
-            .join("pool.d")
+            .join("rynxcp")
             .join(format!("rynx-{username}.conf"));
         let _ = remove_managed(&self.cfg.php_fpm_root, &path);
         Ok(())

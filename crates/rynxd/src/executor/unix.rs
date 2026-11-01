@@ -151,6 +151,32 @@ impl RealExecutor {
     }
 }
 
+fn php_fpm_unit(
+    version: &str,
+    conf: &Path,
+    memory_mb: u64,
+    tasks: u64,
+    cpu_percent: u64,
+) -> String {
+    format!(
+        "[Unit]\n\
+         Description=RYNXCP PHP {version} FPM\n\
+         After=network.target\n\n\
+         [Service]\n\
+         Type=simple\n\
+         ExecStart=/usr/sbin/php-fpm{version} --nodaemonize --fpm-config {conf}\n\
+         Restart=on-failure\n\
+         RestartSec=3\n\
+         MemoryMax={memory_mb}M\n\
+         MemorySwapMax=0\n\
+         TasksMax={tasks}\n\
+         CPUQuota={cpu_percent}%\n\n\
+         [Install]\n\
+         WantedBy=multi-user.target\n",
+        conf = conf.display()
+    )
+}
+
 async fn run(program: &str, args: &[&str]) -> ExecResult<String> {
     let output = tokio::process::Command::new(program)
         .args(args)
@@ -1248,46 +1274,99 @@ impl Executor for RealExecutor {
         username: &str,
         version: &str,
         content: &str,
+        memory_limit_mb: u64,
+        max_children: u16,
         enable: bool,
     ) -> ExecResult<()> {
-        let dir = self
-            .cfg
-            .php_fpm_root
-            .join(version)
-            .join("fpm")
-            .join("pool.d");
-        let path = dir.join(format!("rynx-{username}.conf"));
-        if !dir.exists() {
+        let fpm_dir = self.cfg.php_fpm_root.join(version).join("fpm");
+        if !fpm_dir.is_dir() {
             return Err(ExecError::NotFound(format!(
                 "PHP {version} FPM is not installed ({})",
-                dir.display()
+                fpm_dir.display()
             )));
         }
+        let conf_dir = fpm_dir.join("rynxcp");
+        std::fs::create_dir_all(&conf_dir)?;
         std::fs::create_dir_all(&self.cfg.php_socket_dir)?;
-        if enable {
-            write_managed(&self.cfg.php_fpm_root, &path, content, 0o644, Some((0, 0)))?;
-        } else {
-            let _ = remove_managed(&self.cfg.php_fpm_root, &path);
+        let conf_path = conf_dir.join(format!("rynx-{username}.conf"));
+        let unit_name = format!("rynx-php-{username}.service");
+        let unit_path = self.cfg.systemd_dir.join(&unit_name);
+        let legacy_pool = fpm_dir.join("pool.d").join(format!("rynx-{username}.conf"));
+        let legacy_exists = legacy_pool.exists();
+        let legacy_removed =
+            legacy_exists && remove_managed(&self.cfg.php_fpm_root, &legacy_pool).is_ok();
+
+        if !enable {
+            let _ = run("systemctl", &["disable", "--now", &unit_name]).await;
+            let _ = remove_managed(&self.cfg.php_fpm_root, &conf_path);
+            let _ = remove_managed(&self.cfg.systemd_dir, &unit_path);
+            let _ = run("systemctl", &["daemon-reload"]).await;
+            if legacy_removed {
+                let _ = self.reload_service(&format!("php{version}-fpm")).await;
+            }
+            return Ok(());
         }
 
+        let workers = max_children.max(1);
+        let memory_mb = memory_limit_mb.saturating_mul(u64::from(workers));
+        let tasks = u64::from(workers).saturating_add(16);
+        let cpu_percent = u64::from(workers).saturating_mul(100);
+        let conf_changed = std::fs::read_to_string(&conf_path)
+            .map(|existing| existing != content)
+            .unwrap_or(true);
+        let unit_changed = std::fs::read_to_string(&unit_path)
+            .map(|existing| {
+                existing != php_fpm_unit(version, &conf_path, memory_mb, tasks, cpu_percent)
+            })
+            .unwrap_or(true);
+        write_managed(
+            &self.cfg.php_fpm_root,
+            &conf_path,
+            content,
+            0o644,
+            Some((0, 0)),
+        )?;
+        let unit = php_fpm_unit(version, &conf_path, memory_mb, tasks, cpu_percent);
+        write_managed(
+            &self.cfg.systemd_dir,
+            &unit_path,
+            &unit,
+            0o644,
+            Some((0, 0)),
+        )?;
         let php = self.php_binary(version);
-        run(&php, &["-t"]).await?;
-        let service = format!("php{version}-fpm");
-        self.reload_service(&service).await
+        run(&php, &["-t", "-y", &conf_path.display().to_string()]).await?;
+        run("systemctl", &["daemon-reload"]).await?;
+        run("systemctl", &["enable", &unit_name]).await?;
+        if conf_changed || unit_changed {
+            run("systemctl", &["restart", &unit_name]).await?;
+        } else if run("systemctl", &["is-active", "--quiet", &unit_name])
+            .await
+            .is_err()
+        {
+            run("systemctl", &["start", &unit_name]).await?;
+        }
+        if legacy_removed {
+            let _ = self.reload_service(&format!("php{version}-fpm")).await;
+        }
+        Ok(())
     }
 
     async fn remove_php_pool(&self, username: &str, version: &str) -> ExecResult<()> {
-        let path = self
-            .cfg
-            .php_fpm_root
-            .join(version)
-            .join("fpm")
-            .join("pool.d")
-            .join(format!("rynx-{username}.conf"));
-        let _ = remove_managed(&self.cfg.php_fpm_root, &path);
-        let php = self.php_binary(version);
-        if run(&php, &["-t"]).await.is_ok() {
-            self.reload_service(&format!("php{version}-fpm")).await.ok();
+        let fpm_dir = self.cfg.php_fpm_root.join(version).join("fpm");
+        let conf_path = fpm_dir.join("rynxcp").join(format!("rynx-{username}.conf"));
+        let legacy_pool = fpm_dir.join("pool.d").join(format!("rynx-{username}.conf"));
+        let unit_name = format!("rynx-php-{username}.service");
+        let unit_path = self.cfg.systemd_dir.join(&unit_name);
+        let _ = run("systemctl", &["disable", "--now", &unit_name]).await;
+        let legacy_exists = legacy_pool.exists();
+        let legacy_removed =
+            legacy_exists && remove_managed(&self.cfg.php_fpm_root, &legacy_pool).is_ok();
+        let _ = remove_managed(&self.cfg.php_fpm_root, &conf_path);
+        let _ = remove_managed(&self.cfg.systemd_dir, &unit_path);
+        let _ = run("systemctl", &["daemon-reload"]).await;
+        if legacy_removed {
+            let _ = self.reload_service(&format!("php{version}-fpm")).await;
         }
         Ok(())
     }

@@ -1239,7 +1239,14 @@ impl Reconciler {
             }
         }
         self.exec
-            .apply_php_pool(&spec.username, &spec.version, &content, spec.enabled)
+            .apply_php_pool(
+                &spec.username,
+                &spec.version,
+                &content,
+                u64::from(spec.memory_limit_mb),
+                spec.max_children,
+                spec.enabled,
+            )
             .await
             .map_err(exec_error)?;
         self.state.upsert_php_pool(spec, &socket).map_err(internal)

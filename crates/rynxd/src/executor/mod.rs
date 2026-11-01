@@ -229,6 +229,8 @@ pub trait Executor: Send + Sync {
         username: &str,
         version: &str,
         content: &str,
+        memory_limit_mb: u64,
+        max_children: u16,
         enable: bool,
     ) -> ExecResult<()>;
     async fn remove_php_pool(&self, username: &str, version: &str) -> ExecResult<()>;

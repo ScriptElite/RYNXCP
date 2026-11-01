@@ -268,6 +268,18 @@ fn webmail_location(out: &mut String, webmail_root: &str, socket: &str) {
 pub fn php_fpm_pool(spec: &PhpPoolSpec, socket: &str, home: &str) -> String {
     let mut out = String::with_capacity(1024);
     let _ = writeln!(out, "; {MARKER}");
+    let _ = writeln!(out, "[global]");
+    let _ = writeln!(
+        out,
+        "pid = /run/php/php{}-fpm-{}.pid",
+        spec.version, spec.username
+    );
+    let _ = writeln!(
+        out,
+        "error_log = /var/log/php{}-fpm-{}.log",
+        spec.version, spec.username
+    );
+    let _ = writeln!(out, "daemonize = no");
     let _ = writeln!(out, "[rynx-{}]", spec.username);
     let _ = writeln!(out, "user = {}", spec.username);
     let _ = writeln!(out, "group = {}", spec.username);
