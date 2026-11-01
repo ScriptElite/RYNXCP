@@ -1679,6 +1679,8 @@ impl Executor for RealExecutor {
                     spec.admin_password.clone(),
                     "-e".to_string(),
                     spec.admin_email.clone(),
+                    "-l".to_string(),
+                    "en".to_string(),
                     "-P".to_string(),
                     "b".to_string(),
                     "-N".to_string(),
