@@ -926,7 +926,12 @@ rynxctl reconcile
 ## API
 
 Except for login, two-factor verification, password reset, health and meta, every
-route requires a session; mutating methods require `x-csrf-token`.
+route requires an authenticated session or a personal API token
+(`Authorization: Bearer rynx_...`). Browser-session mutations require
+`x-csrf-token`; Bearer requests do not.
+
+See [docs/api.md](docs/api.md) for authentication and `curl` examples, and
+[docs/webhooks.md](docs/webhooks.md) for event payloads and HMAC verification.
 
 ```
 GET    /api/v1/health           GET    /api/v1/meta
