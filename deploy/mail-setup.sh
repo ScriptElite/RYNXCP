@@ -187,6 +187,8 @@ if dovecot_is_v24; then
 cat >"$DOVECOT_CONF" <<EOF
 # managed-by: RYNXCP
 # Dovecot 2.4 configuration.
+dovecot_config_version = 2.4.0
+dovecot_storage_version = 2.4.0
 protocols = imap pop3 lmtp sieve
 mail_driver = maildir
 mail_home = ${VMAIL_ROOT}/%{user | domain}/%{user | username}

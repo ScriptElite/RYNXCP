@@ -2241,8 +2241,10 @@ impl Executor for RealExecutor {
         let mut sni = String::new();
         let mut dovecot = if dovecot_v24 {
             String::from(
-                "# managed-by: RYNXCP\n\
+                "                 # managed-by: RYNXCP\n\
                  # Dovecot 2.4 configuration.\n\
+                 dovecot_config_version = 2.4.0\n\
+                 dovecot_storage_version = 2.4.0\n\
                  protocols = imap pop3 lmtp sieve\n\
                  mail_driver = maildir\n\
                  mail_home = /var/vmail/%{user | domain}/%{user | username}\n\
