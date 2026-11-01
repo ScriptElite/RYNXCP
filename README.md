@@ -59,6 +59,7 @@ reconciliation engine and UI are original.
 | Files | Per-site document-root file manager with strict account isolation |
 | phpMyAdmin | MariaDB web UI protected by the panel login gate |
 | FTP | Pure-FTPd virtual users, chrooted to the account home, read-only or read-write |
+| SSH | Opt-in, key-based SSH for hosting accounts; the menu is hidden until enabled |
 | Backups | Home + managed configuration, retention, restore and daily timer |
 | Cron | Per-account scheduled tasks with enable/disable and delete controls |
 | Certificates | Let's Encrypt with SANs, bulk renewal and daily timer |
@@ -642,6 +643,23 @@ account home, which includes each domain's document root and `apps/`. Explicit F
 supported. A password is generated when not provided. The package
 `ftp_accounts` limit is enforced when creating an account.
 
+## SSH
+
+SSH is **opt-in per hosting account** and disabled by default. The account form
+has a **Permitir acceso SSH** checkbox; toggling it from the account list applies
+the change immediately. When disabled, the Linux user keeps `/usr/sbin/nologin`
+and the **SSH** menu is not shown to linked panel users.
+
+When enabled, the account's Linux user gets `/bin/bash`, `~/.ssh` with `0700`
+and `~/.ssh/authorized_keys` with `0600`. Access is key-based: linked operators
+add or remove public keys from the **SSH** view, which also shows the
+`ssh <user>@<host> -p 22` command. Private keys are never sent to or stored by
+the panel. Suspending the account disables the shell again.
+
+Commands run as that Linux user, with its UID/GID, home and environment. The
+panel never opens a web shell; this keeps the no-shell rule and isolates every
+account.
+
 ## Backups
 
 Each backup includes the home directory, vhost, DNS zone, PHP pool, systemd units and
@@ -921,6 +939,8 @@ POST       /api/v1/files/rename
 GET|POST   /api/v1/ftp               DELETE /api/v1/ftp/{id}
 GET        /api/v1/monitor/services
 GET        /api/v1/monitor/history?minutes=1440
+GET        /api/v1/ssh
+POST|DELETE /api/v1/ssh/keys
 GET        /api/v1/agent/findings
 POST       /api/v1/agent/findings/{id}/status
 POST       /api/v1/agent/run

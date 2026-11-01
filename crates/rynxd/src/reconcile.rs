@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use base64::Engine as _;
 use rynx_core::audit::{self, AuditLog};
 use rynx_core::crypto::{now_rfc3339, now_unix, random_hex, sha256_hex};
 use rynx_core::templates::{self, NginxContext};
@@ -64,6 +65,38 @@ fn validate_wordpress_fields(spec: &InstallerApplySpec) -> Result<(), WireError>
             "the WordPress administrator password must be 8-128 printable characters",
         ));
     }
+    Ok(())
+}
+
+fn validate_ssh_key(key: &str) -> Result<(), WireError> {
+    let line = key.trim();
+    if line.is_empty()
+        || line.len() > 4096
+        || line.contains('\n')
+        || line.contains('\r')
+        || line.contains('\0')
+        || line.starts_with('#')
+    {
+        return Err(WireError::invalid("invalid SSH public key"));
+    }
+    let mut parts = line.split_whitespace();
+    let kind = parts.next().unwrap_or_default();
+    let data = parts.next().unwrap_or_default();
+    const KINDS: [&str; 7] = [
+        "ssh-ed25519",
+        "ssh-rsa",
+        "ecdsa-sha2-nistp256",
+        "ecdsa-sha2-nistp384",
+        "ecdsa-sha2-nistp521",
+        "sk-ssh-ed25519@openssh.com",
+        "sk-ecdsa-sha2-nistp256@openssh.com",
+    ];
+    if !KINDS.contains(&kind) || data.is_empty() {
+        return Err(WireError::invalid("unsupported SSH public key"));
+    }
+    base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| WireError::invalid("invalid SSH public key encoding"))?;
     Ok(())
 }
 
@@ -215,6 +248,11 @@ impl Reconciler {
                 Ok(Response::Apps { apps })
             }
             Request::InstallerApply(spec) => self.installer_apply(spec, actor).await,
+            Request::SshKeys { username } => self.ssh_keys(&username).await,
+            Request::SshKeyAdd { username, key } => self.ssh_key_add(&username, &key, actor).await,
+            Request::SshKeyDelete { username, key } => {
+                self.ssh_key_delete(&username, &key, actor).await
+            }
 
             Request::CertIssue {
                 domain,
@@ -363,6 +401,10 @@ impl Reconciler {
         let home = self.exec.home(&spec.username).display().to_string();
         self.exec
             .ensure_account(&spec, uid)
+            .await
+            .map_err(exec_error)?;
+        self.exec
+            .set_ssh_access(&spec.username, spec.enabled && spec.ssh_enabled)
             .await
             .map_err(exec_error)?;
         // A pre-existing Linux user may have a different UID than the value
@@ -1279,6 +1321,65 @@ impl Reconciler {
             &format!("app={}", spec.app.as_str()),
         )?;
         Ok(Response::InstallerResult { message })
+    }
+
+    async fn ssh_keys(&self, username: &str) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        let account = self.require_account(username)?;
+        if !account.spec.enabled || !account.spec.ssh_enabled {
+            return Err(WireError::conflict(
+                "SSH access is disabled for this account",
+            ));
+        }
+        let keys = self.exec.ssh_keys(username).await.map_err(exec_error)?;
+        Ok(Response::SshKeys { keys })
+    }
+
+    async fn ssh_key_add(
+        &self,
+        username: &str,
+        key: &str,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        validate_ssh_key(key)?;
+        let account = self.require_account(username)?;
+        if !account.spec.enabled || !account.spec.ssh_enabled {
+            return Err(WireError::conflict(
+                "SSH access is disabled for this account",
+            ));
+        }
+        self.exec
+            .add_ssh_key(username, key.trim())
+            .await
+            .map_err(exec_error)?;
+        self.log(actor, "ssh.key.add", username, "")?;
+        Ok(Response::Ack {
+            message: "SSH key added".into(),
+        })
+    }
+
+    async fn ssh_key_delete(
+        &self,
+        username: &str,
+        key: &str,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        let account = self.require_account(username)?;
+        if !account.spec.enabled || !account.spec.ssh_enabled {
+            return Err(WireError::conflict(
+                "SSH access is disabled for this account",
+            ));
+        }
+        self.exec
+            .remove_ssh_key(username, key.trim())
+            .await
+            .map_err(exec_error)?;
+        self.log(actor, "ssh.key.delete", username, "")?;
+        Ok(Response::Ack {
+            message: "SSH key removed".into(),
+        })
     }
 
     async fn cert_issue(
@@ -3227,7 +3328,21 @@ impl Reconciler {
                     .map_err(internal)?;
             }
             match self.exec.ensure_account(&account.spec, actual_uid).await {
-                Ok(_) => applied += 1,
+                Ok(_) => {
+                    if self
+                        .exec
+                        .set_ssh_access(
+                            &account.spec.username,
+                            account.spec.enabled && account.spec.ssh_enabled,
+                        )
+                        .await
+                        .is_ok()
+                    {
+                        applied += 1;
+                    } else {
+                        failures += 1;
+                    }
+                }
                 Err(err) => {
                     failures += 1;
                     tracing::warn!(account = %account.spec.username, error = %err, "reconcile account failed");

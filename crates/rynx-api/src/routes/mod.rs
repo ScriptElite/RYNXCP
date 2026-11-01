@@ -28,6 +28,7 @@ pub mod php;
 pub mod programs;
 pub mod security;
 pub mod session;
+pub mod ssh;
 pub mod system;
 pub mod users;
 pub mod websites;
@@ -151,6 +152,11 @@ pub fn router(state: ApiState) -> Router {
         .route("/api/v1/installer/catalog", get(installer::catalog))
         .route("/api/v1/installer/install", post(installer::install))
         .route("/api/v1/installer/jobs/{id}", get(installer::job_status))
+        .route("/api/v1/ssh", get(ssh::status))
+        .route(
+            "/api/v1/ssh/keys",
+            post(ssh::add_key).delete(ssh::remove_key),
+        )
         .route("/api/v1/security/auth-events", get(security::events))
         .route("/api/v1/security/stats", get(security::stats))
         .route("/api/v1/console", post(console::run))

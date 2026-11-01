@@ -768,6 +768,91 @@ impl Executor for RealExecutor {
         Ok(())
     }
 
+    async fn set_ssh_access(&self, username: &str, enabled: bool) -> ExecResult<()> {
+        let shell = if enabled {
+            "/bin/bash"
+        } else {
+            "/usr/sbin/nologin"
+        };
+        run("usermod", &["--shell", shell, username]).await?;
+        if enabled {
+            let home = self.home(username);
+            let owner = User::from_name(username)
+                .map_err(|err| ExecError::Io(err.to_string()))?
+                .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?;
+            let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
+            let dir = home.join(".ssh");
+            std::fs::create_dir_all(&dir)?;
+            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
+            let file = dir.join("authorized_keys");
+            if let Ok(existing) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&file)
+            {
+                drop(existing);
+            }
+            std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600))?;
+        }
+        Ok(())
+    }
+
+    async fn ssh_keys(&self, username: &str) -> ExecResult<Vec<String>> {
+        let file = self.home(username).join(".ssh/authorized_keys");
+        match std::fs::read_to_string(&file) {
+            Ok(content) => Ok(content
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                .map(str::to_string)
+                .collect()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+            Err(err) => Err(ExecError::Io(format!(
+                "cannot read {}: {err}",
+                file.display()
+            ))),
+        }
+    }
+
+    async fn add_ssh_key(&self, username: &str, key: &str) -> ExecResult<()> {
+        self.set_ssh_access(username, true).await?;
+        let mut keys = self.ssh_keys(username).await?;
+        if keys.iter().any(|existing| existing == key) {
+            return Ok(());
+        }
+        keys.push(key.to_string());
+        self.write_ssh_keys(username, &keys).await
+    }
+
+    async fn remove_ssh_key(&self, username: &str, key: &str) -> ExecResult<()> {
+        let keys: Vec<String> = self
+            .ssh_keys(username)
+            .await?
+            .into_iter()
+            .filter(|existing| existing != key)
+            .collect();
+        self.write_ssh_keys(username, &keys).await
+    }
+
+    async fn write_ssh_keys(&self, username: &str, keys: &[String]) -> ExecResult<()> {
+        let home = self.home(username);
+        let owner = User::from_name(username)
+            .map_err(|err| ExecError::Io(err.to_string()))?
+            .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?;
+        let _identity = switch_fs_identity(owner.uid.as_raw(), owner.gid.as_raw())?;
+        let dir = home.join(".ssh");
+        std::fs::create_dir_all(&dir)?;
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
+        let file = dir.join("authorized_keys");
+        let mut content = keys.join("\n");
+        if !content.is_empty() {
+            content.push('\n');
+        }
+        std::fs::write(&file, content)?;
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600))?;
+        Ok(())
+    }
+
     async fn remove_website_root(&self, username: &str, relative: &str) -> ExecResult<()> {
         validate_relative_path(relative)?;
         if relative.contains('/') {

@@ -13,6 +13,15 @@
   ];
 
   const EN = {
+    "Permitir acceso SSH (solo clave pública)": "Allow SSH access (public key only)",
+    "Acceso SSH con clave pública al usuario de la cuenta": "Public-key SSH access to the account user",
+    "Conéctate con:": "Connect with:",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "No SSH keys. Add a public key to connect.",
+    "Añadir clave SSH": "Add SSH key",
+    "Clave pública SSH": "SSH public key",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "Paste only the public key; the private key is never sent to the panel.",
+    "Clave SSH añadida": "SSH key added",
+    "Clave SSH eliminada": "SSH key removed",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "PHP framework installed with Composer, .env and document root in public/. It does not create an administrator user or panel; define your routes or install a starter kit.",
     "Gestor de archivos del document root del sitio": "Site document root file manager",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "Delete the site {id} and everything associated with it (database, mail/webmail, FTP, certificate and DNS)?",
@@ -810,6 +819,15 @@
   };
 
   const PT = {
+    "Permitir acceso SSH (solo clave pública)": "Permitir acesso SSH (apenas chave pública)",
+    "Acceso SSH con clave pública al usuario de la cuenta": "Acesso SSH por chave pública ao utilizador da conta",
+    "Conéctate con:": "Ligue-se com:",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "Não há chaves SSH. Adicione uma chave pública para se ligar.",
+    "Añadir clave SSH": "Adicionar chave SSH",
+    "Clave pública SSH": "Chave pública SSH",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "Cole apenas a chave pública; a chave privada nunca é enviada para o painel.",
+    "Clave SSH añadida": "Chave SSH adicionada",
+    "Clave SSH eliminada": "Chave SSH removida",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "Framework PHP instalado com Composer, .env e document root em public/. Não cria utilizador administrador nem painel; define as tuas rotas ou instala um starter kit.",
     "Gestor de archivos del document root del sitio": "Gestor de ficheiros do document root do site",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "Eliminar o site {id} e tudo o que está associado (base de dados, correio/webmail, FTP, certificado e DNS)?",
@@ -1536,6 +1554,15 @@
   };
 
   const FR = {
+    "Permitir acceso SSH (solo clave pública)": "Autoriser l'accès SSH (clé publique uniquement)",
+    "Acceso SSH con clave pública al usuario de la cuenta": "Accès SSH par clé publique à l'utilisateur du compte",
+    "Conéctate con:": "Connectez-vous avec :",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "Aucune clé SSH. Ajoutez une clé publique pour vous connecter.",
+    "Añadir clave SSH": "Ajouter une clé SSH",
+    "Clave pública SSH": "Clé publique SSH",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "Collez uniquement la clé publique ; la clé privée n'est jamais envoyée au panneau.",
+    "Clave SSH añadida": "Clé SSH ajoutée",
+    "Clave SSH eliminada": "Clé SSH supprimée",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "Framework PHP installé avec Composer, .env et racine de documents dans public/. Il ne crée pas d'utilisateur administrateur ni de panneau ; définissez vos routes ou installez un starter kit.",
     "Gestor de archivos del document root del sitio": "Gestionnaire de fichiers de la racine du site",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "Supprimer le site {id} et tout ce qui y est associé (base de données, messagerie/webmail, FTP, certificat et DNS) ?",
@@ -2263,6 +2290,15 @@
   };
 
   const AR = {
+    "Permitir acceso SSH (solo clave pública)": "السماح بالوصول عبر SSH (مفتاح عام فقط)",
+    "Acceso SSH con clave pública al usuario de la cuenta": "وصول SSH بالمفتاح العام لمستخدم الحساب",
+    "Conéctate con:": "اتصل باستخدام:",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "لا توجد مفاتيح SSH. أضف مفتاحًا عامًا للاتصال.",
+    "Añadir clave SSH": "إضافة مفتاح SSH",
+    "Clave pública SSH": "المفتاح العام SSH",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "الصق المفتاح العام فقط؛ لا يُرسل المفتاح الخاص إلى اللوحة أبدًا.",
+    "Clave SSH añadida": "تمت إضافة مفتاح SSH",
+    "Clave SSH eliminada": "تمت إزالة مفتاح SSH",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "إطار PHP مثبّت باستخدام Composer وملف .env وجذر المستندات في public/. لا ينشئ مستخدم مسؤول أو لوحة؛ عرّف مساراتك أو ثبّت حزمة بداية.",
     "Gestor de archivos del document root del sitio": "مدير ملفات جذر مستندات الموقع",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "هل تريد حذف الموقع {id} وكل ما يرتبط به (قاعدة البيانات والبريد/الويب ميل وFTP والشهادة وDNS)؟",
@@ -2992,6 +3028,15 @@
   };
 
   const RU = {
+    "Permitir acceso SSH (solo clave pública)": "Разрешить доступ по SSH (только публичный ключ)",
+    "Acceso SSH con clave pública al usuario de la cuenta": "SSH-доступ по публичному ключу для пользователя аккаунта",
+    "Conéctate con:": "Подключение:",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "Нет ключей SSH. Добавьте публичный ключ для подключения.",
+    "Añadir clave SSH": "Добавить SSH-ключ",
+    "Clave pública SSH": "Публичный ключ SSH",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "Вставьте только публичный ключ; закрытый ключ никогда не отправляется в панель.",
+    "Clave SSH añadida": "SSH-ключ добавлен",
+    "Clave SSH eliminada": "SSH-ключ удалён",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "PHP-фреймворк, устанавливаемый с Composer, .env и корнем документов в public/. Он не создаёт администратора или панель; определите свои маршруты или установите стартовый набор.",
     "Gestor de archivos del document root del sitio": "Диспетчер файлов корня сайта",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "Удалить сайт {id} и всё связанное с ним (базу данных, почту/веб-почту, FTP, сертификат и DNS)?",
@@ -3720,6 +3765,15 @@
   };
 
   const ZH = {
+    "Permitir acceso SSH (solo clave pública)": "允许 SSH 访问（仅公钥）",
+    "Acceso SSH con clave pública al usuario de la cuenta": "使用公钥访问账户用户的 SSH",
+    "Conéctate con:": "使用以下方式连接：",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "没有 SSH 密钥。添加公钥以连接。",
+    "Añadir clave SSH": "添加 SSH 密钥",
+    "Clave pública SSH": "SSH 公钥",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "仅粘贴公钥；私钥永远不会发送到面板。",
+    "Clave SSH añadida": "SSH 密钥已添加",
+    "Clave SSH eliminada": "SSH 密钥已删除",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "使用 Composer、.env 和 public/ 文档根目录安装的 PHP 框架。不会创建管理员用户或面板；请定义路由或安装入门套件。",
     "Gestor de archivos del document root del sitio": "站点文档根目录文件管理器",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "删除站点 {id} 及其所有关联内容（数据库、邮件/网页邮件、FTP、证书和 DNS）？",
@@ -4445,6 +4499,15 @@
   };
 
   const JA = {
+    "Permitir acceso SSH (solo clave pública)": "SSH アクセスを許可（公開鍵のみ）",
+    "Acceso SSH con clave pública al usuario de la cuenta": "アカウントユーザーへの公開鍵 SSH アクセス",
+    "Conéctate con:": "接続コマンド:",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "SSH キーがありません。接続するには公開鍵を追加してください。",
+    "Añadir clave SSH": "SSH キーを追加",
+    "Clave pública SSH": "SSH 公開鍵",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "公開鍵のみを貼り付けてください。秘密鍵はパネルに送信されません。",
+    "Clave SSH añadida": "SSH キーを追加しました",
+    "Clave SSH eliminada": "SSH キーを削除しました",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "Composer、.env、public/ のドキュメントルートでインストールされる PHP フレームワーク。管理者ユーザーや管理画面は作成されません。ルートを定義するかスターターキットをインストールしてください。",
     "Gestor de archivos del document root del sitio": "サイトのドキュメントルートのファイルマネージャー",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "サイト {id} と関連するすべて（データベース、メール/ウェブメール、FTP、証明書、DNS）を削除しますか？",
@@ -5173,6 +5236,15 @@
   };
 
   const IT = {
+    "Permitir acceso SSH (solo clave pública)": "Consenti accesso SSH (solo chiave pubblica)",
+    "Acceso SSH con clave pública al usuario de la cuenta": "Accesso SSH con chiave pubblica all'utente dell'account",
+    "Conéctate con:": "Connettiti con:",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "Nessuna chiave SSH. Aggiungi una chiave pubblica per connetterti.",
+    "Añadir clave SSH": "Aggiungi chiave SSH",
+    "Clave pública SSH": "Chiave pubblica SSH",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "Incolla solo la chiave pubblica; la chiave privata non viene mai inviata al pannello.",
+    "Clave SSH añadida": "Chiave SSH aggiunta",
+    "Clave SSH eliminada": "Chiave SSH rimossa",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "Framework PHP installato con Composer, .env e document root in public/. Non crea un utente amministratore né un pannello; definisci le tue rotte o installa uno starter kit.",
     "Gestor de archivos del document root del sitio": "Gestore file della document root del sito",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "Eliminare il sito {id} e tutto ciò che è associato (database, posta/webmail, FTP, certificato e DNS)?",
@@ -5895,6 +5967,15 @@
   };
 
   const DE = {
+    "Permitir acceso SSH (solo clave pública)": "SSH-Zugriff erlauben (nur öffentlicher Schlüssel)",
+    "Acceso SSH con clave pública al usuario de la cuenta": "SSH-Zugriff per öffentlichem Schlüssel für den Kontobenutzer",
+    "Conéctate con:": "Verbinden mit:",
+    "No hay claves SSH. Añade una clave pública para conectarte.": "Keine SSH-Schlüssel. Fügen Sie einen öffentlichen Schlüssel zum Verbinden hinzu.",
+    "Añadir clave SSH": "SSH-Schlüssel hinzufügen",
+    "Clave pública SSH": "Öffentlicher SSH-Schlüssel",
+    "Pega solo la clave pública; la clave privada nunca se envía al panel.": "Nur den öffentlichen Schlüssel einfügen; der private Schlüssel wird nie an das Panel gesendet.",
+    "Clave SSH añadida": "SSH-Schlüssel hinzugefügt",
+    "Clave SSH eliminada": "SSH-Schlüssel entfernt",
     "Framework PHP instalado con Composer, .env y document root en public/. No crea usuario administrador ni panel; define tus rutas o instala un starter kit.": "PHP-Framework, installiert mit Composer, .env und Dokumentwurzel in public/. Es erstellt keinen Administratorbenutzer und kein Panel; definieren Sie Ihre Routen oder installieren Sie ein Starter-Kit.",
     "Gestor de archivos del document root del sitio": "Dateimanager für das Dokumentwurzelverzeichnis der Website",
     "¿Eliminar el sitio {id} y todo lo asociado (base de datos, correo/webmail, FTP, certificado y DNS)?": "Website {id} und alles zugehörige (Datenbank, E-Mail/Webmail, FTP, Zertifikat und DNS) löschen?",

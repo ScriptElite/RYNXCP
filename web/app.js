@@ -59,6 +59,7 @@ const NAV_ITEMS = [
   { id: 'ssl', label: 'Certificados', group: 'Operación' },
   { id: 'backups', label: 'Backups', group: 'Operación' },
   { id: 'cron', label: 'Cron', group: 'Operación' },
+  { id: 'ssh', label: 'SSH', group: 'Operación', requiresSsh: true },
   { id: 'monitor', label: 'Monitor', group: 'Operación' },
   { id: 'users', label: 'Usuarios', group: 'Administración', admin: true },
   { id: 'packages', label: 'Paquetes', group: 'Administración', admin: true },
@@ -87,6 +88,7 @@ const NAV_ICON_PATHS = {
   ssl: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
   backups: '<path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
   cron: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  ssh: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><circle cx="16" cy="10" r="1.6"/><path d="m16 11.6 2.2 2.4"/>',
   monitor: '<path d="M3 12h4l2-6 3 12 2-6h7"/>',
   users: '<circle cx="9" cy="8" r="3"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="2"/><path d="M16 14a5 5 0 0 1 6 4"/>',
   packages: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>',
@@ -111,6 +113,7 @@ const TITLES = {
   dns: ['DNS', 'Zonas autoritativas con SPF, DKIM, DMARC, MX y CAA'],
   backups: ['Backups', 'Copias de home, vhosts, pools y unidades con retención'],
   cron: ['Cron', 'Tareas programadas que se ejecutan con el usuario de la cuenta'],
+  ssh: ['SSH', 'Acceso SSH con clave pública al usuario de la cuenta'],
   monitor: ['Monitor', 'Series históricas y estado de cada servicio'],
   security: ['Seguridad', 'Intentos de acceso, bloqueos y cadena de auditoría'],
   filters: ['Antivirus y antispam', 'ClamAV y SpamAssassin con el historial de detecciones y bloqueos'],
@@ -523,6 +526,7 @@ const SCOPED_NAV = new Set([
   'ssl',
   'backups',
   'cron',
+  'ssh',
 ]);
 
 function buildNav() {
@@ -531,6 +535,7 @@ function buildNav() {
   let group = '';
   for (const item of NAV_ITEMS) {
     if (isScoped() && !SCOPED_NAV.has(item.id)) continue;
+    if (item.requiresSsh && (!isScoped() || !S.sshEnabled)) continue;
     if (item.admin && !isAdmin()) continue;
     if (item.group !== group) {
       group = item.group;
@@ -553,6 +558,7 @@ async function boot() {
     S.user = data.user;
     S.csrf = data.csrf_token;
     S.impersonatedBy = data.impersonated_by || null;
+    S.sshEnabled = Boolean(data.ssh_enabled);
     enterApp();
   } catch {
     showLogin();
@@ -568,6 +574,7 @@ const renderers = {
   dns: renderDns,
   backups: renderBackups,
   cron: renderCron,
+  ssh: renderSsh,
   monitor: renderMonitor,
   security: renderSecurity,
   filters: renderFilters,
@@ -1006,6 +1013,7 @@ async function renderAccounts() {
     }
     if (!scoped) {
       actions.push(btn(spec.enabled ? 'Suspender' : 'Activar', 'account-toggle', spec.username));
+      actions.push(btn('SSH', 'account-ssh', spec.username, 'tiny ghost'));
       actions.push(btn('Eliminar', 'account-delete', spec.username, 'tiny danger'));
     }
     return [
@@ -1015,6 +1023,7 @@ async function renderAccounts() {
       td(esc(diskText(spec.disk_limit_mb))),
       td(spec.php_version ? `PHP ${esc(spec.php_version)}` : '<span class="muted">—</span>'),
       td(statusBadge(spec.enabled)),
+      td(spec.ssh_enabled ? badge('Sí', 'ok') : badge('No', '')),
       td(`<span class="mono small">${esc(account.home)}</span>`),
       td(actions.join(''), 'actions'),
     ];
@@ -1024,7 +1033,7 @@ async function renderAccounts() {
     ? '<button class="btn primary" data-action="account-new">Nueva cuenta</button>'
     : '';
   let html = sectionHead(scoped ? 'Mi cuenta' : 'Cuentas de hosting', createButton) +
-    table(['Cuenta', 'Paquete', 'UID', 'Disco', 'PHP', 'Estado', 'Home', ''], rows,
+    table(['Cuenta', 'Paquete', 'UID', 'Disco', 'PHP', 'Estado', 'SSH', 'Home', ''], rows,
       scoped ? 'No tienes una cuenta vinculada.' : 'Crea la primera cuenta para empezar.');
   if (scoped && myPackage) {
     html += `<div class="card" style="margin-top:16px">
@@ -1065,6 +1074,7 @@ async function openAccountModal() {
       <div class="field full"><span>Límites del paquete</span><div id="package-summary"></div></div>
       ${fSelect('php_version', 'PHP por defecto', [{ value: '', label: '— sin pool —' }, ...phpVersions.map((v) => ({ value: v, label: `PHP ${v}` }))], { value: phpVersions[0] || '' })}
       <div class="full">${fCheck('enabled', 'Cuenta activa', true)}</div>
+      <div class="full">${fCheck('ssh_enabled', 'Permitir acceso SSH (solo clave pública)', false)}</div>
       ${fSelect('panel_access', 'Acceso al panel del cliente', [
         { value: 'viewer', label: 'Solo lectura (viewer)' },
         { value: 'operator', label: 'Operador (gestiona su cuenta)' },
@@ -1098,6 +1108,7 @@ async function openAccountModal() {
         disk_limit_mb: pkg.account_mb,
         php_version: val(form, 'php_version') || null,
         enabled: bool(form, 'enabled'),
+        ssh_enabled: bool(form, 'ssh_enabled'),
         package_id: pkg.id,
         web_backend: val(form, 'web_backend'),
         panel_access: access !== 'none',
@@ -2821,6 +2832,16 @@ async function handleAction(action, id) {
       toast(account.spec.enabled ? 'Cuenta suspendida' : 'Cuenta activada');
       return refresh();
     }
+    case 'account-ssh': {
+      const account = S.data.accounts.find((a) => a.spec.username === id);
+      if (!account) throw new Error('Cuenta no encontrada');
+      await api('/api/v1/accounts', {
+        method: 'POST',
+        body: { ...account.spec, ssh_enabled: !account.spec.ssh_enabled },
+      });
+      toast(T('Actualizado'));
+      return refresh();
+    }
     case 'account-panel-access': {
       const account = S.data.accounts.find((a) => a.spec.username === id);
       if (!account) throw new Error('Cuenta no encontrada');
@@ -3066,6 +3087,15 @@ async function handleAction(action, id) {
     }
     case 'cron-new':
       return openCronModal();
+    case 'ssh-key-add':
+      return openSshKeyModal();
+    case 'ssh-key-delete': {
+      const key = (S.data.sshKeys || [])[Number(id)];
+      if (!key) return;
+      await api('/api/v1/ssh/keys', { method: 'DELETE', body: { key } });
+      toast('Clave SSH eliminada');
+      return refresh();
+    }
     case 'cron-toggle':
       return toggleCron(id);
     case 'cron-delete': {
@@ -3381,6 +3411,43 @@ async function renderCron() {
   $('#view').innerHTML =
     sectionHead('Cron', writable ? '<button class="btn primary" data-action="cron-new">Nueva tarea</button>' : '') +
     table(['Cuenta', 'Comando', 'Estado', 'Creada', ''], rows, 'No hay tareas programadas. Se ejecutan con el usuario de la cuenta.');
+}
+
+async function renderSsh() {
+  const data = await api('/api/v1/ssh');
+  S.data.sshKeys = data.keys || [];
+  const writable = canWrite();
+  const rows = S.data.sshKeys.map((key, index) => {
+    const parts = key.split(/\s+/);
+    return [
+      td(`<div class="cell-title">${esc(parts[0] || 'SSH')}</div><div class="cell-sub mono">${esc(key.length > 90 ? key.slice(0, 90) + '…' : key)}</div>`),
+      td(writable ? btn('Eliminar', 'ssh-key-delete', String(index), 'tiny danger') : '', 'actions'),
+    ];
+  });
+  $('#view').innerHTML =
+    sectionHead('SSH', writable ? '<button class="btn primary" data-action="ssh-key-add">Añadir clave</button>' : '') +
+    `<div class="card"><p class="muted small" style="margin:0">${T('Conéctate con:')} <span class="mono">ssh ${esc(data.username)}@${esc(data.host)} -p ${esc(data.port)}</span></p></div>` +
+    table(['SSH', ''], rows, 'No hay claves SSH. Añade una clave pública para conectarte.');
+}
+
+function openSshKeyModal() {
+  openModal({
+    title: 'Añadir clave SSH',
+    submitLabel: 'Añadir',
+    html: fTextarea('key', 'Clave pública SSH', {
+      placeholder: 'ssh-ed25519 AAAA... usuario@equipo',
+      full: true,
+      help: 'Pega solo la clave pública; la clave privada nunca se envía al panel.',
+    }),
+    onSubmit: async (form) => {
+      await api('/api/v1/ssh/keys', {
+        method: 'POST',
+        body: { key: val(form, 'key') },
+      });
+      toast('Clave SSH añadida');
+      await refresh();
+    },
+  });
 }
 
 function openCronModal() {

@@ -115,6 +115,17 @@ pub enum Request {
     },
     AppList,
     InstallerApply(InstallerApplySpec),
+    SshKeys {
+        username: String,
+    },
+    SshKeyAdd {
+        username: String,
+        key: String,
+    },
+    SshKeyDelete {
+        username: String,
+        key: String,
+    },
 
     CertIssue {
         domain: String,
@@ -278,6 +289,9 @@ pub enum Response {
     },
     InstallerResult {
         message: String,
+    },
+    SshKeys {
+        keys: Vec<String>,
     },
     Cert {
         cert: CertView,
@@ -502,6 +516,9 @@ pub struct AccountSpec {
     pub disk_limit_mb: u64,
     pub php_version: Option<String>,
     pub enabled: bool,
+    /// Optional interactive SSH access for the Linux account (key-based).
+    #[serde(default)]
+    pub ssh_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

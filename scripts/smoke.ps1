@@ -122,8 +122,9 @@ try {
     Write-Host '==> accounts, apps, websites'
     $account = PostJson '/api/v1/accounts' @{
         username = 'acme'; email = 'acme@example.com'; disk_limit_mb = 2048
-        php_version = '8.3'; enabled = $true
+        php_version = '8.3'; enabled = $true; ssh_enabled = $true
         package_id = $seedPackage.id; web_backend = 'php'
+        panel_access = $true; panel_role = 'operator'
     }
     if ($account.account.kind -ne 'account') { throw 'unexpected account response' }
     if (-not $account.package -or $account.package.web_backend -ne 'php') {
@@ -136,6 +137,26 @@ try {
     }
     $updatedBackend = RequestJson 'PATCH' '/api/v1/packages/assignments/acme' @{ web_backend = 'node' }
     if ($updatedBackend.web_backend -ne 'node') { throw 'the account backend override failed' }
+
+    Write-Host '==> SSH access'
+    if (-not $account.panel_password) { throw 'panel access password missing' }
+    $acmeLogin = Invoke-RestMethod -Uri "$base/api/v1/auth/login" -Method Post `
+        -ContentType 'application/json' -SessionVariable acmeSess `
+        -Body (@{ username = 'acme'; password = $account.panel_password } | ConvertTo-Json)
+    $acmeHeaders = @{ 'x-csrf-token' = $acmeLogin.csrf_token }
+    $acmeMe = Invoke-RestMethod -Uri "$base/api/v1/auth/me" -WebSession $acmeSess
+    if (-not $acmeMe.ssh_enabled) { throw 'scoped user did not receive SSH access' }
+    $sshStatus = Invoke-RestMethod -Uri "$base/api/v1/ssh" -WebSession $acmeSess -Headers $acmeHeaders
+    if ($sshStatus.username -ne 'acme') { throw 'SSH status has the wrong account' }
+    $sshKey = 'ssh-ed25519 ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('smoke-key')) + ' smoke@test'
+    $null = Invoke-RestMethod -Uri "$base/api/v1/ssh/keys" -Method Post -WebSession $acmeSess `
+        -Headers $acmeHeaders -ContentType 'application/json' -Body (@{ key = $sshKey } | ConvertTo-Json)
+    $sshStatus = Invoke-RestMethod -Uri "$base/api/v1/ssh" -WebSession $acmeSess -Headers $acmeHeaders
+    if (@($sshStatus.keys) -notcontains $sshKey) { throw 'SSH key was not stored' }
+    $null = Invoke-RestMethod -Uri "$base/api/v1/ssh/keys" -Method Delete -WebSession $acmeSess `
+        -Headers $acmeHeaders -ContentType 'application/json' -Body (@{ key = $sshKey } | ConvertTo-Json)
+    $sshStatus = Invoke-RestMethod -Uri "$base/api/v1/ssh" -WebSession $acmeSess -Headers $acmeHeaders
+    if (@($sshStatus.keys) -contains $sshKey) { throw 'SSH key was not removed' }
 
     $app = PostJson '/api/v1/apps' @{
         username = 'acme'; name = 'api'; runtime = @{ engine = 'node'; version = '22' }

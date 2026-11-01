@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     disk_limit_mb INTEGER NOT NULL,
     php_version   TEXT,
     enabled       INTEGER NOT NULL,
+    ssh_enabled   INTEGER NOT NULL DEFAULT 0,
     uid           INTEGER NOT NULL,
     home          TEXT NOT NULL,
     created_at    TEXT NOT NULL,
@@ -226,11 +227,12 @@ fn map_account(row: &rusqlite::Row<'_>) -> rusqlite::Result<AccountView> {
             disk_limit_mb: row.get::<_, i64>(3)? as u64,
             php_version: row.get(4)?,
             enabled: row.get::<_, i64>(5)? != 0,
+            ssh_enabled: row.get::<_, i64>(6)? != 0,
         },
-        uid: row.get::<_, i64>(6)? as u32,
-        home: row.get(7)?,
-        created_at: row.get(8)?,
-        updated_at: row.get(9)?,
+        uid: row.get::<_, i64>(7)? as u32,
+        home: row.get(8)?,
+        created_at: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }
 
@@ -256,6 +258,17 @@ impl StateStore {
                 [],
             )?;
         }
+        let has_ssh_enabled: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('accounts') WHERE name = 'ssh_enabled'",
+            [],
+            |row| row.get(0),
+        )?;
+        if has_ssh_enabled == 0 {
+            conn.execute(
+                "ALTER TABLE accounts ADD COLUMN ssh_enabled INTEGER NOT NULL DEFAULT 0",
+                [],
+            )?;
+        }
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -274,7 +287,7 @@ impl StateStore {
     pub fn list_accounts(&self) -> Result<Vec<AccountView>> {
         let conn = self.conn()?;
         let mut stmt = conn.prepare(
-            "SELECT username, id, email, disk_limit_mb, php_version, enabled, uid, home, created_at, updated_at \
+            "SELECT username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at \
              FROM accounts ORDER BY username",
         )?;
         let rows = stmt.query_map([], map_account)?;
@@ -289,7 +302,7 @@ impl StateStore {
         let conn = self.conn()?;
         Ok(conn
             .query_row(
-                "SELECT username, id, email, disk_limit_mb, php_version, enabled, uid, home, created_at, updated_at \
+                "SELECT username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at \
                  FROM accounts WHERE username = ?1",
                 params![username],
                 map_account,
@@ -313,12 +326,13 @@ impl StateStore {
         };
         let conn = self.conn()?;
         conn.execute(
-            "INSERT INTO accounts (username, id, email, disk_limit_mb, php_version, enabled, uid, home, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
+            "INSERT INTO accounts (username, id, email, disk_limit_mb, php_version, enabled, ssh_enabled, uid, home, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
              ON CONFLICT(username) DO UPDATE SET \
                email = excluded.email, disk_limit_mb = excluded.disk_limit_mb, \
                php_version = excluded.php_version, enabled = excluded.enabled, \
-               uid = excluded.uid, home = excluded.home, updated_at = excluded.updated_at",
+               ssh_enabled = excluded.ssh_enabled, uid = excluded.uid, \
+               home = excluded.home, updated_at = excluded.updated_at",
             params![
                 spec.username,
                 id,
@@ -326,6 +340,7 @@ impl StateStore {
                 spec.disk_limit_mb as i64,
                 spec.php_version,
                 if spec.enabled { 1 } else { 0 },
+                if spec.ssh_enabled { 1 } else { 0 },
                 uid as i64,
                 home,
                 created_at,

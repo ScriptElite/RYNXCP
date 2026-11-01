@@ -173,6 +173,10 @@ pub trait Executor: Send + Sync {
 
     async fn ensure_account(&self, spec: &AccountSpec, uid: u32) -> ExecResult<()>;
     async fn remove_account(&self, username: &str, purge: bool) -> ExecResult<()>;
+    async fn set_ssh_access(&self, username: &str, enabled: bool) -> ExecResult<()>;
+    async fn ssh_keys(&self, username: &str) -> ExecResult<Vec<String>>;
+    async fn add_ssh_key(&self, username: &str, key: &str) -> ExecResult<()>;
+    async fn remove_ssh_key(&self, username: &str, key: &str) -> ExecResult<()>;
     async fn remove_website_root(&self, username: &str, relative: &str) -> ExecResult<()>;
     async fn ensure_docroot(&self, username: &str, uid: u32, path: &Path) -> ExecResult<()>;
 

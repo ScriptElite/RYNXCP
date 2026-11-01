@@ -62,6 +62,8 @@ pub struct MeResponse {
     pub user: UserView,
     pub csrf_token: String,
     pub impersonated_by: Option<String>,
+    #[serde(default)]
+    pub ssh_enabled: bool,
 }
 
 pub async fn login(
@@ -537,11 +539,28 @@ pub async fn logout(
     Ok(response)
 }
 
-pub async fn me(Extension(auth): Extension<AuthUser>) -> Json<MeResponse> {
+pub async fn me(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+) -> Json<MeResponse> {
+    let ssh_enabled = match auth.user.account.as_deref() {
+        Some(account) => match state
+            .daemon
+            .call(rynx_proto::Request::AccountList, &auth.user.username)
+            .await
+        {
+            Ok(rynx_proto::Response::Accounts { accounts }) => accounts.iter().any(|item| {
+                item.spec.username == account && item.spec.enabled && item.spec.ssh_enabled
+            }),
+            _ => false,
+        },
+        None => false,
+    };
     Json(MeResponse {
         user: auth.user,
         csrf_token: auth.csrf_token,
         impersonated_by: auth.impersonated_by,
+        ssh_enabled,
     })
 }
 

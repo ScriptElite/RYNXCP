@@ -536,7 +536,7 @@ apt-cache show php8.5-fpm >/dev/null 2>&1 || die "PHP 8.5 is not available for $
 log "Installing web, database, DNS, FTP, mail tooling, firewall and runtimes"
 # PHP 8.5 compiles OPcache into the runtime: there is no php8.5-opcache package.
 apt-get install -y --no-install-recommends \
-  nginx certbot python3-certbot-nginx \
+  nginx certbot python3-certbot-nginx openssh-server \
   php8.5-fpm php8.5-cli php8.5-common php8.5-mysql php8.5-curl php8.5-mbstring \
   php8.5-xml php8.5-zip php8.5-gd php8.5-intl php8.5-bcmath \
   composer unzip mariadb-server bind9 bind9-utils bind9-dnsutils \
@@ -621,6 +621,7 @@ log "Enabling services"
 systemctl enable --now nginx
 systemctl enable --now php8.5-fpm
 systemctl enable --now mariadb
+systemctl enable --now ssh >/dev/null 2>&1 || warn "the SSH service could not be enabled"
 # On current Debian/Ubuntu, named.service is the real unit and bind9.service
 # is an alias, so "systemctl enable bind9" fails with "linked unit file".
 systemctl enable --now named 2>/dev/null || \

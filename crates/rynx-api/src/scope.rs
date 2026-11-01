@@ -224,6 +224,7 @@ mod tests {
                 disk_limit_mb: 1024,
                 php_version: None,
                 enabled: true,
+                ssh_enabled: false,
             },
             uid: 2000,
             home: format!("/home/{username}"),

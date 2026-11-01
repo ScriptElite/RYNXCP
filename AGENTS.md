@@ -48,6 +48,8 @@ feature end to end, and cleans up after itself.
 - Keep generated paths inside managed roots; use atomic writes.
 - Every privileged action must be audited.
 - Never log secrets, tokens, passwords or private keys.
+- SSH is opt-in per hosting account and key-based. Never add a free-form web
+  shell or PTY to the panel; use the closed console actions instead.
 
 ## Installers and upgrades
 

@@ -154,6 +154,62 @@ impl Executor for SimExecutor {
         Ok(())
     }
 
+    async fn set_ssh_access(&self, username: &str, enabled: bool) -> ExecResult<()> {
+        if enabled {
+            let dir = self.home(username).join(".ssh");
+            std::fs::create_dir_all(&dir)?;
+            let file = dir.join("authorized_keys");
+            if !file.exists() {
+                write_text(&file, "")?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn ssh_keys(&self, username: &str) -> ExecResult<Vec<String>> {
+        let file = self.home(username).join(".ssh/authorized_keys");
+        match std::fs::read_to_string(&file) {
+            Ok(content) => Ok(content
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                .map(str::to_string)
+                .collect()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+            Err(err) => Err(ExecError::Io(err.to_string())),
+        }
+    }
+
+    async fn add_ssh_key(&self, username: &str, key: &str) -> ExecResult<()> {
+        let mut keys = self.ssh_keys(username).await?;
+        if !keys.iter().any(|existing| existing == key) {
+            keys.push(key.to_string());
+        }
+        let dir = self.home(username).join(".ssh");
+        std::fs::create_dir_all(&dir)?;
+        let mut content = keys.join("\n");
+        if !content.is_empty() {
+            content.push('\n');
+        }
+        write_text(&dir.join("authorized_keys"), &content)
+    }
+
+    async fn remove_ssh_key(&self, username: &str, key: &str) -> ExecResult<()> {
+        let keys: Vec<String> = self
+            .ssh_keys(username)
+            .await?
+            .into_iter()
+            .filter(|existing| existing != key)
+            .collect();
+        let dir = self.home(username).join(".ssh");
+        std::fs::create_dir_all(&dir)?;
+        let mut content = keys.join("\n");
+        if !content.is_empty() {
+            content.push('\n');
+        }
+        write_text(&dir.join("authorized_keys"), &content)
+    }
+
     async fn remove_website_root(&self, username: &str, relative: &str) -> ExecResult<()> {
         let target = self.home(username).join(relative);
         if target.exists() {
