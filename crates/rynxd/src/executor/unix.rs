@@ -456,6 +456,55 @@ fn backup_destination_dir(username: &str) -> ExecResult<PathBuf> {
     Ok(PathBuf::from("/etc/rynxcp/backup-destinations").join(username))
 }
 
+fn backup_destination_env(
+    cfg: &DaemonConfig,
+    username: &str,
+) -> ExecResult<Option<(String, Vec<(String, String)>)>> {
+    let dir = backup_destination_dir(username)?;
+    let config = dir.join("destination.json");
+    if !config.is_file() {
+        return Ok(None);
+    }
+    let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&config)?)
+        .map_err(|_| ExecError::InvalidInput("invalid backup destination".into()))?;
+    if !value
+        .get("enabled")
+        .and_then(|item| item.as_bool())
+        .unwrap_or(false)
+    {
+        return Ok(None);
+    }
+    let kind = value
+        .get("kind")
+        .and_then(|item| item.as_str())
+        .unwrap_or_default();
+    let repository = value
+        .get("repository")
+        .and_then(|item| item.as_str())
+        .unwrap_or_default();
+    let mut envs = vec![
+        ("RESTIC_REPOSITORY".into(), repository.to_string()),
+        (
+            "RESTIC_PASSWORD_FILE".into(),
+            dir.join("password").display().to_string(),
+        ),
+    ];
+    match kind {
+        "s3" => envs.extend(read_restic_env(&dir.join("secret"))?),
+        "gcs" => envs.push((
+            "GOOGLE_APPLICATION_CREDENTIALS".into(),
+            dir.join("secret").display().to_string(),
+        )),
+        "sftp" => envs.push(("HOME".into(), dir.display().to_string())),
+        _ => return Ok(None),
+    }
+    let bin = cfg.restic_bin.trim();
+    Ok(Some((
+        if bin.is_empty() { "restic" } else { bin }.to_string(),
+        envs,
+    )))
+}
+
 fn set_private_dir(path: &Path) -> ExecResult<()> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
@@ -2152,7 +2201,7 @@ impl Executor for RealExecutor {
     }
 
     async fn offsite_backup(&self, path: &Path, tag: &str) -> ExecResult<bool> {
-        if let Some((bin, envs)) = self.backup_destination_env(tag)? {
+        if let Some((bin, envs)) = backup_destination_env(&self.cfg, tag)? {
             let mut snapshots = vec!["snapshots".to_string(), "--no-cache".to_string()];
             if run_with_env(&bin, &snapshots, &envs).await.is_err() {
                 snapshots = vec!["init".to_string()];
@@ -2228,55 +2277,6 @@ impl Executor for RealExecutor {
         ];
         run_with_env(bin, &backup, &envs).await?;
         Ok(true)
-    }
-
-    fn backup_destination_env(
-        &self,
-        username: &str,
-    ) -> ExecResult<Option<(String, Vec<(String, String)>)>> {
-        let dir = backup_destination_dir(username)?;
-        let config = dir.join("destination.json");
-        if !config.is_file() {
-            return Ok(None);
-        }
-        let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&config)?)
-            .map_err(|_| ExecError::InvalidInput("invalid backup destination".into()))?;
-        if !value
-            .get("enabled")
-            .and_then(|item| item.as_bool())
-            .unwrap_or(false)
-        {
-            return Ok(None);
-        }
-        let kind = value
-            .get("kind")
-            .and_then(|item| item.as_str())
-            .unwrap_or_default();
-        let repository = value
-            .get("repository")
-            .and_then(|item| item.as_str())
-            .unwrap_or_default();
-        let mut envs = vec![
-            ("RESTIC_REPOSITORY".into(), repository.to_string()),
-            (
-                "RESTIC_PASSWORD_FILE".into(),
-                dir.join("password").display().to_string(),
-            ),
-        ];
-        match kind {
-            "s3" => envs.extend(read_restic_env(&dir.join("secret"))?),
-            "gcs" => envs.push((
-                "GOOGLE_APPLICATION_CREDENTIALS".into(),
-                dir.join("secret").display().to_string(),
-            )),
-            "sftp" => envs.push(("HOME".into(), dir.display().to_string())),
-            _ => return Ok(None),
-        }
-        let bin = self.cfg.restic_bin.trim();
-        Ok(Some((
-            if bin.is_empty() { "restic" } else { bin }.to_string(),
-            envs,
-        )))
     }
 
     async fn backup_destination_get(
@@ -2385,7 +2385,7 @@ impl Executor for RealExecutor {
     }
 
     async fn backup_destination_test(&self, username: &str) -> ExecResult<()> {
-        let Some((bin, envs)) = self.backup_destination_env(username)? else {
+        let Some((bin, envs)) = backup_destination_env(&self.cfg, username)? else {
             return Err(ExecError::NotFound(
                 "no backup destination is configured for this account".into(),
             ));
