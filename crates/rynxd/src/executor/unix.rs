@@ -456,10 +456,9 @@ fn backup_destination_dir(username: &str) -> ExecResult<PathBuf> {
     Ok(PathBuf::from("/etc/rynxcp/backup-destinations").join(username))
 }
 
-fn backup_destination_env(
-    cfg: &DaemonConfig,
-    username: &str,
-) -> ExecResult<Option<(String, Vec<(String, String)>)>> {
+type ResticTarget = (String, Vec<(String, String)>);
+
+fn backup_destination_env(cfg: &DaemonConfig, username: &str) -> ExecResult<Option<ResticTarget>> {
     let dir = backup_destination_dir(username)?;
     let config = dir.join("destination.json");
     if !config.is_file() {
