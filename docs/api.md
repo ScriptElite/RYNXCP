@@ -158,6 +158,46 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
   "$PANEL/api/v1/backups"
 ```
 
+### External backup destination
+
+Configure the destination for one account:
+
+```bash
+curl -sS -X PUT \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{
+    "kind": "s3",
+    "repository": "s3:https://s3.amazonaws.com/bucket/accounts/acct1",
+    "password": "repo-encryption-password",
+    "secret": "AWS_ACCESS_KEY_ID=...\nAWS_SECRET_ACCESS_KEY=...",
+    "enabled": true
+  }' \
+  "$PANEL/api/v1/backups/destination/acct1"
+```
+
+`kind` is `s3`, `sftp` or `gcs`. For SFTP, `secret` is the private key; for
+GCS it is the service-account JSON. Read, delete and test it with:
+
+```text
+GET|DELETE /api/v1/backups/destination/{account}
+POST       /api/v1/backups/destination/{account}/test
+```
+
+List and restore external snapshots:
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  "$PANEL/api/v1/backups/external/acct1"
+
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"snapshot":"<restic snapshot id>"}' \
+  "$PANEL/api/v1/backups/external/acct1/restore"
+```
+
+Secrets are never returned by these endpoints.
+
 ### Register a webhook
 
 ```bash

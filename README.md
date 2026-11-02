@@ -60,7 +60,7 @@ reconciliation engine and UI are original.
 | phpMyAdmin | MariaDB web UI protected by the panel login gate |
 | FTP | Pure-FTPd virtual users, chrooted to the account home, read-only or read-write |
 | SSH | Opt-in, key-based SSH for hosting accounts; the menu is hidden until enabled |
-| Backups | Home + managed configuration, retention, restore and daily timer |
+| Backups | Local + encrypted per-account S3/SFTP/GCS, retention, restore and daily timer |
 | Cron | Per-account scheduled tasks with enable/disable and delete controls |
 | Certificates | Let's Encrypt with SANs, bulk renewal and daily timer |
 | Monitoring | Per-service state/CPU/RAM/uptime and 7-day historical series |
@@ -1040,6 +1040,10 @@ GET|POST   /api/v1/mail/queue
 GET|POST   /api/v1/backups           DELETE /api/v1/backups/{id}
 POST       /api/v1/backups/{id}/restore
 GET        /api/v1/backups/{id}/download
+GET|PUT|DELETE /api/v1/backups/destination/{account}
+POST       /api/v1/backups/destination/{account}/test
+GET        /api/v1/backups/external/{account}
+POST       /api/v1/backups/external/{account}/restore
 GET|POST   /api/v1/cron              DELETE /api/v1/cron/{id}
 GET        /api/v1/dns               GET    /api/v1/dns/{domain}
 POST       /api/v1/dns/{domain}/records
