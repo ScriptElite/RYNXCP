@@ -11,8 +11,8 @@ use rynx_core::paths::{remove_managed, write_managed};
 use rynx_core::DaemonConfig;
 use rynx_proto::{
     AccountSpec, AppSpec, BackupDestinationSpec, BackupDestinationView, CertView,
-    CertificateStatus, FileEntry, InstallerApp, InstallerApplySpec, MailDomainSpec, MailQueueEntry,
-    PackageUpdate, ProgramInfo, SystemInfo,
+    CertificateStatus, ExternalBackupView, FileEntry, InstallerApp, InstallerApplySpec,
+    MailDomainSpec, MailQueueEntry, PackageUpdate, ProgramInfo, SystemInfo,
 };
 
 use super::{
@@ -778,6 +778,14 @@ impl Executor for SimExecutor {
     }
 
     async fn backup_destination_test(&self, _username: &str) -> ExecResult<()> {
+        Ok(())
+    }
+
+    async fn backup_external_list(&self, _username: &str) -> ExecResult<Vec<ExternalBackupView>> {
+        Ok(Vec::new())
+    }
+
+    async fn backup_external_restore(&self, _username: &str, _snapshot: &str) -> ExecResult<()> {
         Ok(())
     }
 

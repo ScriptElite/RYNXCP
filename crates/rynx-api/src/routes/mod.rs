@@ -146,6 +146,14 @@ pub fn router(state: ApiState) -> Router {
             "/api/v1/backups/destination/{account}/test",
             post(backups::destination_test),
         )
+        .route(
+            "/api/v1/backups/external/{account}",
+            get(backups::external_list),
+        )
+        .route(
+            "/api/v1/backups/external/{account}/restore",
+            post(backups::external_restore),
+        )
         .route("/api/v1/backups/{id}", delete(backups::delete))
         .route("/api/v1/backups/{id}/restore", post(backups::restore))
         .route("/api/v1/backups/{id}/download", get(backups::download))

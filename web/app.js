@@ -3474,6 +3474,8 @@ async function handleAction(action, id) {
       toast('SPF, DKIM, DMARC y MX provisionados');
       return refresh();
     }
+    case 'backup-external':
+      return openExternalRestoreModal();
     case 'backup-destination':
       return openBackupDestinationModal();
     case 'backup-new':
@@ -3799,7 +3801,7 @@ async function renderBackups() {
     sectionHead(
       'Copias de seguridad',
       writable
-        ? '<button class="btn ghost" data-action="backup-destination">Destino externo</button><button class="btn primary" data-action="backup-new">Crear backup</button>'
+        ? '<button class="btn ghost" data-action="backup-external">Restaurar externo</button><button class="btn ghost" data-action="backup-destination">Destino externo</button><button class="btn primary" data-action="backup-new">Crear backup</button>'
         : '',
     ) +
     table(['Cuenta', 'Fecha', 'Tamaño', 'Estado', 'Ruta', ''], rows, 'Aún no hay copias. Se conservan las últimas 7 por cuenta.');
@@ -3942,6 +3944,44 @@ function openBackupDestinationModal() {
         },
       });
       toast('Destino externo guardado');
+      await refresh();
+    },
+  });
+}
+
+function openExternalRestoreModal() {
+  if (!S.data.accounts.length) {
+    toast('Primero crea una cuenta', 'error');
+    return;
+  }
+  openModal({
+    title: 'Restaurar backup externo',
+    submitLabel: 'Restaurar',
+    html: `<div class="form-grid">
+      ${fSelect('account', 'Cuenta', accountOptions(false), { required: true })}
+      <div class="field full" id="external-snapshots"><small class="hint">${esc(T('Cargando snapshots...'))}</small></div>
+    </div>`,
+    onMount: async (form) => {
+      const target = form.querySelector('#external-snapshots');
+      try {
+        const data = await api(`/api/v1/backups/external/${encodeURIComponent(form.elements.account.value)}`);
+        const backups = data.backups || [];
+        target.innerHTML = backups.length
+          ? fSelect('snapshot', 'Snapshot externo', backups.map((item) => ({ value: item.id, label: `${item.id.slice(0, 12)} · ${fmtDate(item.time)}` })), { required: true, full: true })
+          : `<small class="hint">${esc(T('No hay snapshots externos.'))}</small>`;
+      } catch (err) {
+        target.innerHTML = `<small class="hint">${esc(err.message)}</small>`;
+      }
+    },
+    onSubmit: async (form) => {
+      const snapshot = form.elements.snapshot ? form.elements.snapshot.value : '';
+      if (!snapshot) throw new Error(T('Selecciona un snapshot externo'));
+      if (!confirm(T('¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.'))) return;
+      await api(`/api/v1/backups/external/${encodeURIComponent(form.elements.account.value)}/restore`, {
+        method: 'POST',
+        body: { snapshot },
+      });
+      toast('Backup externo restaurado');
       await refresh();
     },
   });

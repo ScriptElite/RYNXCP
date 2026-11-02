@@ -504,6 +504,29 @@ fn backup_destination_env(cfg: &DaemonConfig, username: &str) -> ExecResult<Opti
     )))
 }
 
+fn find_backup_archive(root: &Path) -> Option<PathBuf> {
+    for entry in std::fs::read_dir(root).ok()?.flatten() {
+        let path = entry.path();
+        let Ok(meta) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if meta.is_dir() {
+            if let Some(found) = find_backup_archive(&path) {
+                return Some(found);
+            }
+        } else if meta.is_file()
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| name.ends_with(".tar.gz"))
+                .unwrap_or(false)
+        {
+            return Some(path);
+        }
+    }
+    None
+}
+
 fn set_private_dir(path: &Path) -> ExecResult<()> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
@@ -2396,6 +2419,88 @@ impl Executor for RealExecutor {
         )
         .await
         .map(|_| ())
+    }
+
+    async fn backup_external_list(&self, username: &str) -> ExecResult<Vec<ExternalBackupView>> {
+        let Some((bin, envs)) = backup_destination_env(&self.cfg, username)? else {
+            return Ok(Vec::new());
+        };
+        let output = run_with_env(
+            &bin,
+            &[
+                "snapshots".to_string(),
+                "--json".to_string(),
+                "--no-cache".to_string(),
+            ],
+            &envs,
+        )
+        .await?;
+        let values: Vec<serde_json::Value> = serde_json::from_str(&output)
+            .map_err(|_| ExecError::InvalidInput("invalid restic snapshot list".into()))?;
+        Ok(values
+            .into_iter()
+            .filter_map(|item| {
+                let id = item.get("id")?.as_str()?.to_string();
+                let time = item
+                    .get("time")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                Some(ExternalBackupView { id, time })
+            })
+            .collect())
+    }
+
+    async fn backup_external_restore(&self, username: &str, snapshot: &str) -> ExecResult<()> {
+        if snapshot.is_empty()
+            || snapshot.len() > 64
+            || !snapshot.chars().all(|ch| ch.is_ascii_hexdigit())
+        {
+            return Err(ExecError::InvalidInput("invalid snapshot id".into()));
+        }
+        let Some((bin, envs)) = backup_destination_env(&self.cfg, username)? else {
+            return Err(ExecError::NotFound(
+                "no backup destination is configured for this account".into(),
+            ));
+        };
+        let target = self
+            .cfg
+            .backup_dir
+            .join(format!(".restore-{}", random_hex(8)));
+        std::fs::create_dir_all(&target)?;
+        set_private_dir(&target)?;
+        let restore = run_with_env(
+            &bin,
+            &[
+                "restore".to_string(),
+                snapshot.to_string(),
+                "--target".to_string(),
+                target.display().to_string(),
+                "--no-cache".to_string(),
+            ],
+            &envs,
+        )
+        .await;
+        let archive = if restore.is_ok() {
+            find_backup_archive(&target)
+        } else {
+            None
+        };
+        let result = match archive {
+            Some(archive) => {
+                let user = User::from_name(username)
+                    .map_err(|err| ExecError::Io(err.to_string()))?
+                    .ok_or_else(|| ExecError::MissingAccount(username.to_string()))?;
+                self.restore_backup(&archive, username, user.uid.as_raw())
+                    .await
+            }
+            None => Err(ExecError::InvalidInput(
+                "the external snapshot has no backup archive".into(),
+            )),
+        };
+        let _ = std::fs::remove_dir_all(&target);
+        restore?;
+        result
     }
 
     async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()> {

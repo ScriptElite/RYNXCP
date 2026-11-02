@@ -316,6 +316,11 @@ impl Reconciler {
             Request::BackupDestinationTest { username } => {
                 self.backup_destination_test(&username, actor).await
             }
+            Request::BackupExternalList { username } => self.backup_external_list(&username).await,
+            Request::BackupExternalRestore { username, snapshot } => {
+                self.backup_external_restore(&username, &snapshot, actor)
+                    .await
+            }
 
             Request::CronList => {
                 let jobs = self.state.list_cron().map_err(internal)?;
@@ -2281,6 +2286,60 @@ impl Reconciler {
         self.log(actor, "backup.destination.test", username, "ok")?;
         Ok(Response::Ack {
             message: "backup destination is reachable".into(),
+        })
+    }
+
+    async fn backup_external_list(&self, username: &str) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        self.require_account(username)?;
+        let backups = self
+            .exec
+            .backup_external_list(username)
+            .await
+            .map_err(exec_error)?;
+        Ok(Response::ExternalBackups { backups })
+    }
+
+    async fn backup_external_restore(
+        &self,
+        username: &str,
+        snapshot: &str,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        let account = self.require_account(username)?;
+        self.exec
+            .backup_external_restore(username, snapshot)
+            .await
+            .map_err(exec_error)?;
+        self.exec
+            .ensure_account(&account.spec, account.uid)
+            .await
+            .map_err(exec_error)?;
+        if let Some(pool) = self.state.get_php_pool(username).map_err(internal)? {
+            let _ = self.apply_php_pool(&pool.spec).await;
+        }
+        for app in self
+            .state
+            .list_apps()
+            .map_err(internal)?
+            .into_iter()
+            .filter(|app| app.spec.username == username)
+        {
+            let _ = self.apply_app(&app.spec).await;
+        }
+        for website in self
+            .state
+            .list_websites()
+            .map_err(internal)?
+            .into_iter()
+            .filter(|website| website.spec.username == username)
+        {
+            let _ = self.apply_website(&website.spec).await;
+        }
+        self.log(actor, "backup.external.restore", username, snapshot)?;
+        Ok(Response::Ack {
+            message: "external backup restored".into(),
         })
     }
 

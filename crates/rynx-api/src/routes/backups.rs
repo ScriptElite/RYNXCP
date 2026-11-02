@@ -152,6 +152,48 @@ pub async fn destination_test(
     Ok(Json(response))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ExternalRestore {
+    pub snapshot: String,
+}
+
+pub async fn external_list(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(account): Path<String>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.ensure_account(&account)?;
+    let response = state
+        .daemon
+        .call(
+            Request::BackupExternalList { username: account },
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}
+
+pub async fn external_restore(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(account): Path<String>,
+    Json(body): Json<ExternalRestore>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.require_write()?;
+    auth.ensure_account(&account)?;
+    let response = state
+        .daemon
+        .call(
+            Request::BackupExternalRestore {
+                username: account,
+                snapshot: body.snapshot,
+            },
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}
+
 pub async fn delete(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthUser>,

@@ -16,8 +16,9 @@ use async_trait::async_trait;
 
 use rynx_core::{CoreError, DaemonConfig};
 use rynx_proto::{
-    AccountSpec, AppSpec, BackupDestinationSpec, BackupDestinationView, CertView, FileEntry,
-    InstallerApplySpec, MailDomainSpec, MailQueueEntry, PackageUpdate, ProgramInfo, SystemInfo,
+    AccountSpec, AppSpec, BackupDestinationSpec, BackupDestinationView, CertView,
+    ExternalBackupView, FileEntry, InstallerApplySpec, MailDomainSpec, MailQueueEntry,
+    PackageUpdate, ProgramInfo, SystemInfo,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -301,6 +302,8 @@ pub trait Executor: Send + Sync {
     ) -> ExecResult<BackupDestinationView>;
     async fn backup_destination_delete(&self, username: &str) -> ExecResult<()>;
     async fn backup_destination_test(&self, username: &str) -> ExecResult<()>;
+    async fn backup_external_list(&self, username: &str) -> ExecResult<Vec<ExternalBackupView>>;
+    async fn backup_external_restore(&self, username: &str, snapshot: &str) -> ExecResult<()>;
     async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()>;
     async fn clone_database(&self, source: &str, target: &str) -> ExecResult<()>;
     async fn read_log_tail(&self, path: &Path, lines: u32) -> ExecResult<String>;

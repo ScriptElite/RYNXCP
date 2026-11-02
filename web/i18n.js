@@ -13,6 +13,14 @@
   ];
 
   const EN = {
+    "Restaurar externo": "Restore external",
+    "Restaurar backup externo": "Restore external backup",
+    "Cargando snapshots...": "Loading snapshots...",
+    "Snapshot externo": "External snapshot",
+    "No hay snapshots externos.": "No external snapshots.",
+    "Selecciona un snapshot externo": "Select an external snapshot",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "Restore this external backup? Managed files and configuration will be overwritten.",
+    "Backup externo restaurado": "External backup restored",
     "Destino externo": "External destination",
     "Tipo de destino": "Destination type",
     "Repositorio": "Repository",
@@ -915,6 +923,14 @@
   };
 
   const PT = {
+    "Restaurar externo": "Restaurar externo",
+    "Restaurar backup externo": "Restaurar backup externo",
+    "Cargando snapshots...": "A carregar snapshots...",
+    "Snapshot externo": "Snapshot externo",
+    "No hay snapshots externos.": "Sem snapshots externos.",
+    "Selecciona un snapshot externo": "Selecione um snapshot externo",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "Restaurar este backup externo? Os ficheiros e a configuração gerida serão substituídos.",
+    "Backup externo restaurado": "Backup externo restaurado",
     "Destino externo": "Destino externo",
     "Tipo de destino": "Tipo de destino",
     "Repositorio": "Repositório",
@@ -1746,6 +1762,14 @@
   };
 
   const FR = {
+    "Restaurar externo": "Restaurer externe",
+    "Restaurar backup externo": "Restaurer une sauvegarde externe",
+    "Cargando snapshots...": "Chargement des snapshots...",
+    "Snapshot externo": "Snapshot externe",
+    "No hay snapshots externos.": "Aucun snapshot externe.",
+    "Selecciona un snapshot externo": "Sélectionnez un snapshot externe",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "Restaurer cette sauvegarde externe ? Les fichiers et la configuration gérés seront remplacés.",
+    "Backup externo restaurado": "Sauvegarde externe restaurée",
     "Destino externo": "Destination externe",
     "Tipo de destino": "Type de destination",
     "Repositorio": "Dépôt",
@@ -2578,6 +2602,14 @@
   };
 
   const AR = {
+    "Restaurar externo": "استعادة خارجية",
+    "Restaurar backup externo": "استعادة نسخة احتياطية خارجية",
+    "Cargando snapshots...": "جارٍ تحميل اللقطات...",
+    "Snapshot externo": "لقطة خارجية",
+    "No hay snapshots externos.": "لا توجد لقطات خارجية.",
+    "Selecciona un snapshot externo": "اختر لقطة خارجية",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "استعادة هذه النسخة الخارجية؟ سيتم استبدال الملفات والإعدادات المُدارة.",
+    "Backup externo restaurado": "تمت استعادة النسخة الخارجية",
     "Destino externo": "وجهة خارجية",
     "Tipo de destino": "نوع الوجهة",
     "Repositorio": "المستودع",
@@ -3412,6 +3444,14 @@
   };
 
   const RU = {
+    "Restaurar externo": "Восстановить внешнюю копию",
+    "Restaurar backup externo": "Восстановить внешнюю резервную копию",
+    "Cargando snapshots...": "Загрузка снапшотов...",
+    "Snapshot externo": "Внешний снапшот",
+    "No hay snapshots externos.": "Нет внешних снапшотов.",
+    "Selecciona un snapshot externo": "Выберите внешний снапшот",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "Восстановить эту внешнюю копию? Управляемые файлы и конфигурация будут перезаписаны.",
+    "Backup externo restaurado": "Внешняя резервная копия восстановлена",
     "Destino externo": "Внешнее назначение",
     "Tipo de destino": "Тип назначения",
     "Repositorio": "Репозиторий",
@@ -4245,6 +4285,14 @@
   };
 
   const ZH = {
+    "Restaurar externo": "恢复外部备份",
+    "Restaurar backup externo": "恢复外部备份",
+    "Cargando snapshots...": "正在加载快照...",
+    "Snapshot externo": "外部快照",
+    "No hay snapshots externos.": "没有外部快照。",
+    "Selecciona un snapshot externo": "请选择外部快照",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "恢复此外部备份？受管理的文件和配置将被覆盖。",
+    "Backup externo restaurado": "外部备份已恢复",
     "Destino externo": "外部目标",
     "Tipo de destino": "目标类型",
     "Repositorio": "存储库",
@@ -5075,6 +5123,14 @@
   };
 
   const JA = {
+    "Restaurar externo": "外部バックアップを復元",
+    "Restaurar backup externo": "外部バックアップを復元",
+    "Cargando snapshots...": "スナップショットを読み込み中...",
+    "Snapshot externo": "外部スナップショット",
+    "No hay snapshots externos.": "外部スナップショットはありません。",
+    "Selecciona un snapshot externo": "外部スナップショットを選択してください",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "この外部バックアップを復元しますか？管理対象のファイルと設定は上書きされます。",
+    "Backup externo restaurado": "外部バックアップを復元しました",
     "Destino externo": "外部保存先",
     "Tipo de destino": "保存先の種類",
     "Repositorio": "リポジトリ",
@@ -5908,6 +5964,14 @@
   };
 
   const IT = {
+    "Restaurar externo": "Ripristina esterno",
+    "Restaurar backup externo": "Ripristina backup esterno",
+    "Cargando snapshots...": "Caricamento snapshot...",
+    "Snapshot externo": "Snapshot esterno",
+    "No hay snapshots externos.": "Nessuno snapshot esterno.",
+    "Selecciona un snapshot externo": "Seleziona uno snapshot esterno",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "Ripristinare questo backup esterno? I file e la configurazione gestiti verranno sovrascritti.",
+    "Backup externo restaurado": "Backup esterno ripristinato",
     "Destino externo": "Destinazione esterna",
     "Tipo de destino": "Tipo di destinazione",
     "Repositorio": "Repository",
@@ -6735,6 +6799,14 @@
   };
 
   const DE = {
+    "Restaurar externo": "Extern wiederherstellen",
+    "Restaurar backup externo": "Externes Backup wiederherstellen",
+    "Cargando snapshots...": "Snapshots werden geladen...",
+    "Snapshot externo": "Externer Snapshot",
+    "No hay snapshots externos.": "Keine externen Snapshots.",
+    "Selecciona un snapshot externo": "Wählen Sie einen externen Snapshot",
+    "¿Restaurar este backup externo? Se sobrescribirán archivos y configuración gestionada.": "Dieses externe Backup wiederherstellen? Verwaltete Dateien und Konfiguration werden überschrieben.",
+    "Backup externo restaurado": "Externes Backup wiederhergestellt",
     "Destino externo": "Externes Ziel",
     "Tipo de destino": "Zieltyp",
     "Repositorio": "Repository",
