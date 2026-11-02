@@ -19,8 +19,9 @@ use rynx_core::crypto::random_hex;
 use rynx_core::paths::{remove_managed, write_managed};
 use rynx_core::DaemonConfig;
 use rynx_proto::{
-    AccountSpec, AppSpec, CertView, CertificateStatus, FileEntry, InstallerApp, InstallerApplySpec,
-    MailDomainSpec, MailQueueEntry, PackageUpdate, ProgramInfo, SystemInfo,
+    AccountSpec, AppSpec, BackupDestinationSpec, BackupDestinationView, CertView,
+    CertificateStatus, FileEntry, InstallerApp, InstallerApplySpec, MailDomainSpec, MailQueueEntry,
+    PackageUpdate, ProgramInfo, SystemInfo,
 };
 
 use super::{
@@ -446,6 +447,25 @@ fn write_owned_file(path: &Path, data: &[u8], uid: Uid, gid: Gid) -> ExecResult<
         .map_err(|err| ExecError::Io(format!("cannot chmod {}: {err}", path.display())))?;
     chown(path, Some(uid), Some(gid))
         .map_err(|err| ExecError::Io(format!("cannot chown {}: {err}", path.display())))?;
+    Ok(())
+}
+
+fn backup_destination_dir(username: &str) -> ExecResult<PathBuf> {
+    rynx_core::validate_username(username)
+        .map_err(|err| ExecError::InvalidInput(err.to_string()))?;
+    Ok(PathBuf::from("/etc/rynxcp/backup-destinations").join(username))
+}
+
+fn set_private_dir(path: &Path) -> ExecResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
+    Ok(())
+}
+
+fn write_private_file(path: &Path, data: &[u8]) -> ExecResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::write(path, data)?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     Ok(())
 }
 
@@ -2132,6 +2152,22 @@ impl Executor for RealExecutor {
     }
 
     async fn offsite_backup(&self, path: &Path, tag: &str) -> ExecResult<bool> {
+        if let Some((bin, envs)) = self.backup_destination_env(tag)? {
+            let mut snapshots = vec!["snapshots".to_string(), "--no-cache".to_string()];
+            if run_with_env(&bin, &snapshots, &envs).await.is_err() {
+                snapshots = vec!["init".to_string()];
+                run_with_env(&bin, &snapshots, &envs).await?;
+            }
+            let backup = vec![
+                "backup".to_string(),
+                path.display().to_string(),
+                "--tag".to_string(),
+                tag.to_string(),
+                "--no-cache".to_string(),
+            ];
+            run_with_env(&bin, &backup, &envs).await?;
+            return Ok(true);
+        }
         if !self.cfg.offsite_enabled {
             return Ok(false);
         }
@@ -2192,6 +2228,175 @@ impl Executor for RealExecutor {
         ];
         run_with_env(bin, &backup, &envs).await?;
         Ok(true)
+    }
+
+    fn backup_destination_env(
+        &self,
+        username: &str,
+    ) -> ExecResult<Option<(String, Vec<(String, String)>)>> {
+        let dir = backup_destination_dir(username)?;
+        let config = dir.join("destination.json");
+        if !config.is_file() {
+            return Ok(None);
+        }
+        let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&config)?)
+            .map_err(|_| ExecError::InvalidInput("invalid backup destination".into()))?;
+        if !value
+            .get("enabled")
+            .and_then(|item| item.as_bool())
+            .unwrap_or(false)
+        {
+            return Ok(None);
+        }
+        let kind = value
+            .get("kind")
+            .and_then(|item| item.as_str())
+            .unwrap_or_default();
+        let repository = value
+            .get("repository")
+            .and_then(|item| item.as_str())
+            .unwrap_or_default();
+        let mut envs = vec![
+            ("RESTIC_REPOSITORY".into(), repository.to_string()),
+            (
+                "RESTIC_PASSWORD_FILE".into(),
+                dir.join("password").display().to_string(),
+            ),
+        ];
+        match kind {
+            "s3" => envs.extend(read_restic_env(&dir.join("secret"))?),
+            "gcs" => envs.push((
+                "GOOGLE_APPLICATION_CREDENTIALS".into(),
+                dir.join("secret").display().to_string(),
+            )),
+            "sftp" => envs.push(("HOME".into(), dir.display().to_string())),
+            _ => return Ok(None),
+        }
+        let bin = self.cfg.restic_bin.trim();
+        Ok(Some((
+            if bin.is_empty() { "restic" } else { bin }.to_string(),
+            envs,
+        )))
+    }
+
+    async fn backup_destination_get(
+        &self,
+        username: &str,
+    ) -> ExecResult<Option<BackupDestinationView>> {
+        let dir = backup_destination_dir(username)?;
+        let config = dir.join("destination.json");
+        if !config.is_file() {
+            return Ok(None);
+        }
+        let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&config)?)
+            .map_err(|_| ExecError::InvalidInput("invalid backup destination".into()))?;
+        Ok(Some(BackupDestinationView {
+            username: username.to_string(),
+            kind: value
+                .get("kind")
+                .and_then(|item| item.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            repository: value
+                .get("repository")
+                .and_then(|item| item.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            enabled: value
+                .get("enabled")
+                .and_then(|item| item.as_bool())
+                .unwrap_or(false),
+            has_secret: dir.join("secret").is_file() && dir.join("password").is_file(),
+        }))
+    }
+
+    async fn backup_destination_upsert(
+        &self,
+        spec: &BackupDestinationSpec,
+    ) -> ExecResult<BackupDestinationView> {
+        let dir = backup_destination_dir(&spec.username)?;
+        let repository = spec.repository.trim();
+        let kind = spec.kind.trim().to_ascii_lowercase();
+        let expected_prefix = match kind.as_str() {
+            "s3" => "s3:",
+            "sftp" => "sftp:",
+            "gcs" => "gs:",
+            _ => {
+                return Err(ExecError::InvalidInput(
+                    "backup kind must be s3, sftp or gcs".into(),
+                ));
+            }
+        };
+        if !repository.starts_with(expected_prefix) || repository.chars().any(|ch| ch.is_control())
+        {
+            return Err(ExecError::InvalidInput(
+                "invalid backup repository for the selected kind".into(),
+            ));
+        }
+        if spec.password.is_empty() || spec.password.chars().any(|ch| ch.is_control()) {
+            return Err(ExecError::InvalidInput(
+                "the backup repository password is required".into(),
+            ));
+        }
+        std::fs::create_dir_all(&dir)?;
+        set_private_dir(&dir)?;
+        write_private_file(&dir.join("password"), spec.password.as_bytes())?;
+        write_private_file(&dir.join("secret"), spec.secret.as_bytes())?;
+        if kind == "sftp" {
+            let ssh = dir.join(".ssh");
+            std::fs::create_dir_all(&ssh)?;
+            set_private_dir(&ssh)?;
+            write_private_file(&ssh.join("id_ed25519"), spec.secret.as_bytes())?;
+            write_private_file(
+                &ssh.join("config"),
+                format!(
+                    "Host *\n  IdentityFile {}\n  StrictHostKeyChecking accept-new\n",
+                    ssh.join("id_ed25519").display()
+                )
+                .as_bytes(),
+            )?;
+        }
+        let config = serde_json::json!({
+            "kind": kind,
+            "repository": repository,
+            "enabled": spec.enabled,
+        });
+        write_private_file(
+            &dir.join("destination.json"),
+            serde_json::to_string_pretty(&config)
+                .map_err(|_| ExecError::InvalidInput("invalid backup destination".into()))?
+                .as_bytes(),
+        )?;
+        Ok(BackupDestinationView {
+            username: spec.username.clone(),
+            kind,
+            repository: repository.to_string(),
+            enabled: spec.enabled,
+            has_secret: true,
+        })
+    }
+
+    async fn backup_destination_delete(&self, username: &str) -> ExecResult<()> {
+        let dir = backup_destination_dir(username)?;
+        if dir.exists() {
+            std::fs::remove_dir_all(dir)?;
+        }
+        Ok(())
+    }
+
+    async fn backup_destination_test(&self, username: &str) -> ExecResult<()> {
+        let Some((bin, envs)) = self.backup_destination_env(username)? else {
+            return Err(ExecError::NotFound(
+                "no backup destination is configured for this account".into(),
+            ));
+        };
+        run_with_env(
+            &bin,
+            &["snapshots".to_string(), "--no-cache".to_string()],
+            &envs,
+        )
+        .await
+        .map(|_| ())
     }
 
     async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()> {

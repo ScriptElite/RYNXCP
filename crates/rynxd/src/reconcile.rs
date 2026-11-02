@@ -17,12 +17,12 @@ use rynx_core::validate::{
 };
 use rynx_core::DaemonConfig;
 use rynx_proto::{
-    AccountSpec, AccountView, AppSpec, AppView, AuditEntry, BackupView, BlockedIpView, CertView,
-    CertificateStatus, ConsoleAction, CronJobView, CronSpec, DatabaseView, DnsRecordSpec,
-    DnsRecordView, DnsZoneView, FirewallRuleSpec, FirewallRuleView, FirewallView, FtpSpec, FtpView,
-    InstallerApp, InstallerApplySpec, MailAccountSpec, MailDomainSpec, MailDomainView,
-    MetricSample, PhpPoolSpec, PhpPoolView, Request, Response, Runtime, ServiceStat, SystemInfo,
-    TlsMode, WebsiteSpec, WebsiteView, WireError,
+    AccountSpec, AccountView, AppSpec, AppView, AuditEntry, BackupDestinationSpec, BackupView,
+    BlockedIpView, CertView, CertificateStatus, ConsoleAction, CronJobView, CronSpec, DatabaseView,
+    DnsRecordSpec, DnsRecordView, DnsZoneView, FirewallRuleSpec, FirewallRuleView, FirewallView,
+    FtpSpec, FtpView, InstallerApp, InstallerApplySpec, MailAccountSpec, MailDomainSpec,
+    MailDomainView, MetricSample, PhpPoolSpec, PhpPoolView, Request, Response, Runtime,
+    ServiceStat, SystemInfo, TlsMode, WebsiteSpec, WebsiteView, WireError,
 };
 
 use crate::executor::{validate_site_root, ExecError, Executor, MailAccountConfig};
@@ -304,6 +304,18 @@ impl Reconciler {
             }
             Request::BackupDelete { id } => self.backup_delete(&id, actor).await,
             Request::BackupRestore { id } => self.backup_restore(&id, actor).await,
+            Request::BackupDestinationGet { username } => {
+                self.backup_destination_get(&username).await
+            }
+            Request::BackupDestinationUpsert(spec) => {
+                self.backup_destination_upsert(spec, actor).await
+            }
+            Request::BackupDestinationDelete { username } => {
+                self.backup_destination_delete(&username, actor).await
+            }
+            Request::BackupDestinationTest { username } => {
+                self.backup_destination_test(&username, actor).await
+            }
 
             Request::CronList => {
                 let jobs = self.state.list_cron().map_err(internal)?;
@@ -2190,6 +2202,86 @@ impl Reconciler {
             .filter(|path| path.exists())
             .map(|path| path.display().to_string())
             .collect()
+    }
+
+    async fn backup_destination_get(&self, username: &str) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        self.require_account(username)?;
+        let destination = self
+            .exec
+            .backup_destination_get(username)
+            .await
+            .map_err(exec_error)?;
+        Ok(Response::BackupDestination { destination })
+    }
+
+    async fn backup_destination_upsert(
+        &self,
+        spec: BackupDestinationSpec,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        validate::validate_username(&spec.username).map_err(invalid)?;
+        self.require_account(&spec.username)?;
+        let kind = spec.kind.trim().to_ascii_lowercase();
+        let prefix = match kind.as_str() {
+            "s3" => "s3:",
+            "sftp" => "sftp:",
+            "gcs" => "gs:",
+            _ => return Err(WireError::invalid("backup kind must be s3, sftp or gcs")),
+        };
+        if !spec.repository.trim().starts_with(prefix) {
+            return Err(WireError::invalid(
+                "backup repository does not match the selected kind",
+            ));
+        }
+        if spec.password.is_empty() || spec.secret.is_empty() {
+            return Err(WireError::invalid(
+                "backup password and credentials are required",
+            ));
+        }
+        let destination = self
+            .exec
+            .backup_destination_upsert(&spec)
+            .await
+            .map_err(exec_error)?;
+        self.log(actor, "backup.destination.upsert", &spec.username, &kind)?;
+        Ok(Response::BackupDestination {
+            destination: Some(destination),
+        })
+    }
+
+    async fn backup_destination_delete(
+        &self,
+        username: &str,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        self.require_account(username)?;
+        self.exec
+            .backup_destination_delete(username)
+            .await
+            .map_err(exec_error)?;
+        self.log(actor, "backup.destination.delete", username, "")?;
+        Ok(Response::Ack {
+            message: "backup destination deleted".into(),
+        })
+    }
+
+    async fn backup_destination_test(
+        &self,
+        username: &str,
+        actor: &str,
+    ) -> Result<Response, WireError> {
+        validate::validate_username(username).map_err(invalid)?;
+        self.require_account(username)?;
+        self.exec
+            .backup_destination_test(username)
+            .await
+            .map_err(exec_error)?;
+        self.log(actor, "backup.destination.test", username, "ok")?;
+        Ok(Response::Ack {
+            message: "backup destination is reachable".into(),
+        })
     }
 
     async fn backup_create(&self, username: &str, actor: &str) -> Result<Response, WireError> {

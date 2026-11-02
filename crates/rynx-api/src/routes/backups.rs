@@ -63,6 +63,95 @@ pub async fn create(
     Ok(Json(response))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DestinationBody {
+    pub kind: String,
+    pub repository: String,
+    pub password: String,
+    pub secret: String,
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+}
+
+fn default_enabled() -> bool {
+    true
+}
+
+pub async fn destination_get(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(account): Path<String>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.ensure_account(&account)?;
+    let response = state
+        .daemon
+        .call(
+            Request::BackupDestinationGet { username: account },
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}
+
+pub async fn destination_put(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(account): Path<String>,
+    Json(body): Json<DestinationBody>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.require_write()?;
+    auth.ensure_account(&account)?;
+    let response = state
+        .daemon
+        .call(
+            Request::BackupDestinationUpsert(rynx_proto::BackupDestinationSpec {
+                username: account.clone(),
+                kind: body.kind,
+                repository: body.repository,
+                password: body.password,
+                secret: body.secret,
+                enabled: body.enabled,
+            }),
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}
+
+pub async fn destination_delete(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(account): Path<String>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.require_write()?;
+    auth.ensure_account(&account)?;
+    let response = state
+        .daemon
+        .call(
+            Request::BackupDestinationDelete { username: account },
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}
+
+pub async fn destination_test(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthUser>,
+    Path(account): Path<String>,
+) -> Result<Json<DaemonResponse>, ApiError> {
+    auth.require_write()?;
+    auth.ensure_account(&account)?;
+    let response = state
+        .daemon
+        .call(
+            Request::BackupDestinationTest { username: account },
+            &auth.user.username,
+        )
+        .await?;
+    Ok(Json(response))
+}
+
 pub async fn delete(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthUser>,

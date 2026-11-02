@@ -136,6 +136,16 @@ pub fn router(state: ApiState) -> Router {
             get(mail::queue).post(mail::queue_action),
         )
         .route("/api/v1/backups", get(backups::list).post(backups::create))
+        .route(
+            "/api/v1/backups/destination/{account}",
+            get(backups::destination_get)
+                .put(backups::destination_put)
+                .delete(backups::destination_delete),
+        )
+        .route(
+            "/api/v1/backups/destination/{account}/test",
+            post(backups::destination_test),
+        )
         .route("/api/v1/backups/{id}", delete(backups::delete))
         .route("/api/v1/backups/{id}/restore", post(backups::restore))
         .route("/api/v1/backups/{id}/download", get(backups::download))

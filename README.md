@@ -726,7 +726,16 @@ them daily.
 which encrypts it before it leaves the server. The local backup is kept even if
 the offsite upload fails; failures are logged and do not block the backup.
 
-Provider credentials go in an optional root-only `offsite_env_file`
+Each hosting account can also configure its **own external destination** from
+**Backups > Destino externo**. The supported restic backends are S3-compatible
+(Amazon S3, Backblaze B2, Wasabi, MinIO), SFTP with a private key, and Google
+Cloud Storage with a service-account JSON. Credentials are written to
+`/etc/rynxcp/backup-destinations/<account>/` as root-only `0600` files and are
+never returned by the API or written to the database. The per-account destination
+takes precedence over the server-wide one. FTP in clear text and Apple iCloud are
+not supported.
+
+Server-wide provider credentials go in an optional root-only `offsite_env_file`
 (`0600`) with one `KEY=VALUE` per line. Restic reads it without exposing the
 secrets in the process list:
 

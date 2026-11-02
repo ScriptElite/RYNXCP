@@ -13,6 +13,14 @@
   ];
 
   const EN = {
+    "Destino externo": "External destination",
+    "Tipo de destino": "Destination type",
+    "Repositorio": "Repository",
+    "Contraseña del repositorio": "Repository password",
+    "Credenciales": "Credentials",
+    "Habilitado": "Enabled",
+    "Guardar destino": "Save destination",
+    "Destino externo guardado": "External destination saved",
     "Solicitando certificado TLS": "Requesting TLS certificate",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav and MediaWiki on a new site with PHP, database and TLS",
     "Joomla": "Joomla",
@@ -907,6 +915,14 @@
   };
 
   const PT = {
+    "Destino externo": "Destino externo",
+    "Tipo de destino": "Tipo de destino",
+    "Repositorio": "Repositório",
+    "Contraseña del repositorio": "Palavra-passe do repositório",
+    "Credenciales": "Credenciais",
+    "Habilitado": "Ativado",
+    "Guardar destino": "Guardar destino",
+    "Destino externo guardado": "Destino externo guardado",
     "Solicitando certificado TLS": "A solicitar certificado TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav e MediaWiki num site novo com PHP, base de dados e TLS",
     "Joomla": "Joomla",
@@ -1730,6 +1746,14 @@
   };
 
   const FR = {
+    "Destino externo": "Destination externe",
+    "Tipo de destino": "Type de destination",
+    "Repositorio": "Dépôt",
+    "Contraseña del repositorio": "Mot de passe du dépôt",
+    "Credenciales": "Identifiants",
+    "Habilitado": "Activé",
+    "Guardar destino": "Enregistrer la destination",
+    "Destino externo guardado": "Destination externe enregistrée",
     "Solicitando certificado TLS": "Demande du certificat TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav et MediaWiki sur un nouveau site avec PHP, base de données et TLS",
     "Joomla": "Joomla",
@@ -2554,6 +2578,14 @@
   };
 
   const AR = {
+    "Destino externo": "وجهة خارجية",
+    "Tipo de destino": "نوع الوجهة",
+    "Repositorio": "المستودع",
+    "Contraseña del repositorio": "كلمة مرور المستودع",
+    "Credenciales": "بيانات الاعتماد",
+    "Habilitado": "مُفعّل",
+    "Guardar destino": "حفظ الوجهة",
+    "Destino externo guardado": "تم حفظ الوجهة الخارجية",
     "Solicitando certificado TLS": "جارٍ طلب شهادة TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress وLaravel وJoomla وGrav وMediaWiki في موقع جديد باستخدام PHP وقاعدة بيانات وTLS",
     "Joomla": "Joomla",
@@ -3380,6 +3412,14 @@
   };
 
   const RU = {
+    "Destino externo": "Внешнее назначение",
+    "Tipo de destino": "Тип назначения",
+    "Repositorio": "Репозиторий",
+    "Contraseña del repositorio": "Пароль репозитория",
+    "Credenciales": "Учётные данные",
+    "Habilitado": "Включено",
+    "Guardar destino": "Сохранить назначение",
+    "Destino externo guardado": "Внешнее назначение сохранено",
     "Solicitando certificado TLS": "Запрос TLS-сертификата",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav и MediaWiki на новом сайте с PHP, базой данных и TLS",
     "Joomla": "Joomla",
@@ -4205,6 +4245,14 @@
   };
 
   const ZH = {
+    "Destino externo": "外部目标",
+    "Tipo de destino": "目标类型",
+    "Repositorio": "存储库",
+    "Contraseña del repositorio": "存储库密码",
+    "Credenciales": "凭据",
+    "Habilitado": "已启用",
+    "Guardar destino": "保存目标",
+    "Destino externo guardado": "外部目标已保存",
     "Solicitando certificado TLS": "正在申请 TLS 证书",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress、Laravel、Joomla、Grav 和 MediaWiki，使用 PHP、数据库和 TLS 创建新站点",
     "Joomla": "Joomla",
@@ -5027,6 +5075,14 @@
   };
 
   const JA = {
+    "Destino externo": "外部保存先",
+    "Tipo de destino": "保存先の種類",
+    "Repositorio": "リポジトリ",
+    "Contraseña del repositorio": "リポジトリのパスワード",
+    "Credenciales": "認証情報",
+    "Habilitado": "有効",
+    "Guardar destino": "保存先を保存",
+    "Destino externo guardado": "外部保存先を保存しました",
     "Solicitando certificado TLS": "TLS証明書を申請中",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress、Laravel、Joomla、Grav、MediaWiki を PHP・データベース・TLS 付きの新規サイトに導入",
     "Joomla": "Joomla",
@@ -5852,6 +5908,14 @@
   };
 
   const IT = {
+    "Destino externo": "Destinazione esterna",
+    "Tipo de destino": "Tipo di destinazione",
+    "Repositorio": "Repository",
+    "Contraseña del repositorio": "Password del repository",
+    "Credenciales": "Credenziali",
+    "Habilitado": "Abilitato",
+    "Guardar destino": "Salva destinazione",
+    "Destino externo guardado": "Destinazione esterna salvata",
     "Solicitando certificado TLS": "Richiesta del certificato TLS",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav e MediaWiki su un nuovo sito con PHP, database e TLS",
     "Joomla": "Joomla",
@@ -6671,6 +6735,14 @@
   };
 
   const DE = {
+    "Destino externo": "Externes Ziel",
+    "Tipo de destino": "Zieltyp",
+    "Repositorio": "Repository",
+    "Contraseña del repositorio": "Repository-Passwort",
+    "Credenciales": "Anmeldedaten",
+    "Habilitado": "Aktiviert",
+    "Guardar destino": "Ziel speichern",
+    "Destino externo guardado": "Externes Ziel gespeichert",
     "Solicitando certificado TLS": "TLS-Zertifikat wird angefordert",
     "WordPress, Laravel, Joomla, Grav y MediaWiki en un sitio nuevo con PHP, base de datos y TLS": "WordPress, Laravel, Joomla, Grav und MediaWiki auf einer neuen Website mit PHP, Datenbank und TLS",
     "Joomla": "Joomla",

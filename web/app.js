@@ -884,7 +884,7 @@ function fCheck(name, label, checked = true) {
 }
 
 function fTextarea(name, label, opts = {}) {
-  return field(name, label, `<textarea name="${esc(name)}" placeholder="${esc(opts.placeholder || '')}">${esc(opts.value || '')}</textarea>`, opts.help, opts.full);
+  return field(name, label, `<textarea name="${esc(name)}" placeholder="${esc(opts.placeholder || '')}"${opts.required ? ' required' : ''}>${esc(opts.value || '')}</textarea>`, opts.help, opts.full);
 }
 
 /* ---------------- package helpers ---------------- */
@@ -3474,6 +3474,8 @@ async function handleAction(action, id) {
       toast('SPF, DKIM, DMARC y MX provisionados');
       return refresh();
     }
+    case 'backup-destination':
+      return openBackupDestinationModal();
     case 'backup-new':
       return openBackupModal();
     case 'backup-delete': {
@@ -3794,7 +3796,12 @@ async function renderBackups() {
     ].join(''), 'actions'),
   ]);
   $('#view').innerHTML =
-    sectionHead('Copias de seguridad', writable ? '<button class="btn primary" data-action="backup-new">Crear backup</button>' : '') +
+    sectionHead(
+      'Copias de seguridad',
+      writable
+        ? '<button class="btn ghost" data-action="backup-destination">Destino externo</button><button class="btn primary" data-action="backup-new">Crear backup</button>'
+        : '',
+    ) +
     table(['Cuenta', 'Fecha', 'Tamaño', 'Estado', 'Ruta', ''], rows, 'Aún no hay copias. Se conservan las últimas 7 por cuenta.');
 }
 
@@ -3899,6 +3906,45 @@ async function toggleCron(id) {
   });
   toast(job.enabled ? 'Tarea desactivada' : 'Tarea activada');
   await refresh();
+}
+
+function openBackupDestinationModal() {
+  if (!S.data.accounts.length) {
+    toast('Primero crea una cuenta', 'error');
+    return;
+  }
+  const kinds = [
+    { value: 's3', label: 'S3 compatible' },
+    { value: 'sftp', label: 'SFTP' },
+    { value: 'gcs', label: 'Google Cloud Storage' },
+  ];
+  openModal({
+    title: 'Destino externo',
+    submitLabel: 'Guardar destino',
+    html: `<div class="form-grid">
+      ${fSelect('account', 'Cuenta', accountOptions(false), { required: true })}
+      ${fSelect('kind', 'Tipo de destino', kinds, { value: 's3' })}
+      ${fInput('repository', 'Repositorio', { required: true, placeholder: 's3:https://s3.amazonaws.com/bucket/accounts/cuenta', full: true })}
+      ${fInput('password', 'Contraseña del repositorio', { type: 'password', required: true, help: 'contraseña de cifrado de restic; guárdala también fuera del servidor' })}
+      ${fTextarea('secret', 'Credenciales', { required: true, full: true, help: 'S3: variables AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY. SFTP: clave privada SSH. GCS: JSON de cuenta de servicio.' })}
+      <div class="full">${fCheck('enabled', 'Habilitado', true)}</div>
+    </div>`,
+    onSubmit: async (form) => {
+      const account = val(form, 'account');
+      await api(`/api/v1/backups/destination/${encodeURIComponent(account)}`, {
+        method: 'PUT',
+        body: {
+          kind: val(form, 'kind'),
+          repository: val(form, 'repository').trim(),
+          password: form.elements.password.value,
+          secret: form.elements.secret.value,
+          enabled: bool(form, 'enabled'),
+        },
+      });
+      toast('Destino externo guardado');
+      await refresh();
+    },
+  });
 }
 
 function openBackupModal() {

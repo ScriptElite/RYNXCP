@@ -10,8 +10,9 @@ use rynx_core::crypto::random_hex;
 use rynx_core::paths::{remove_managed, write_managed};
 use rynx_core::DaemonConfig;
 use rynx_proto::{
-    AccountSpec, AppSpec, CertView, CertificateStatus, FileEntry, InstallerApp, InstallerApplySpec,
-    MailDomainSpec, MailQueueEntry, PackageUpdate, ProgramInfo, SystemInfo,
+    AccountSpec, AppSpec, BackupDestinationSpec, BackupDestinationView, CertView,
+    CertificateStatus, FileEntry, InstallerApp, InstallerApplySpec, MailDomainSpec, MailQueueEntry,
+    PackageUpdate, ProgramInfo, SystemInfo,
 };
 
 use super::{
@@ -750,6 +751,34 @@ impl Executor for SimExecutor {
 
     async fn offsite_backup(&self, _path: &Path, _tag: &str) -> ExecResult<bool> {
         Ok(self.cfg.offsite_enabled)
+    }
+
+    async fn backup_destination_get(
+        &self,
+        _username: &str,
+    ) -> ExecResult<Option<BackupDestinationView>> {
+        Ok(None)
+    }
+
+    async fn backup_destination_upsert(
+        &self,
+        spec: &BackupDestinationSpec,
+    ) -> ExecResult<BackupDestinationView> {
+        Ok(BackupDestinationView {
+            username: spec.username.clone(),
+            kind: spec.kind.clone(),
+            repository: spec.repository.clone(),
+            enabled: spec.enabled,
+            has_secret: !spec.secret.is_empty(),
+        })
+    }
+
+    async fn backup_destination_delete(&self, _username: &str) -> ExecResult<()> {
+        Ok(())
+    }
+
+    async fn backup_destination_test(&self, _username: &str) -> ExecResult<()> {
+        Ok(())
     }
 
     async fn copy_site_tree(&self, username: &str, source: &str, target: &str) -> ExecResult<()> {

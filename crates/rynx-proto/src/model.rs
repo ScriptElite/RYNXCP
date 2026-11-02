@@ -179,6 +179,16 @@ pub enum Request {
     BackupRestore {
         id: String,
     },
+    BackupDestinationGet {
+        username: String,
+    },
+    BackupDestinationUpsert(BackupDestinationSpec),
+    BackupDestinationDelete {
+        username: String,
+    },
+    BackupDestinationTest {
+        username: String,
+    },
 
     CronList,
     CronUpsert(CronSpec),
@@ -338,6 +348,9 @@ pub enum Response {
     },
     Backups {
         backups: Vec<BackupView>,
+    },
+    BackupDestination {
+        destination: Option<BackupDestinationView>,
     },
     CronJob {
         job: CronJobView,
@@ -802,6 +815,26 @@ pub struct BackupView {
     pub size_bytes: u64,
     pub path: String,
     pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BackupDestinationView {
+    pub username: String,
+    pub kind: String,
+    pub repository: String,
+    pub enabled: bool,
+    pub has_secret: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BackupDestinationSpec {
+    pub username: String,
+    pub kind: String,
+    pub repository: String,
+    pub password: String,
+    #[serde(default)]
+    pub secret: String,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
