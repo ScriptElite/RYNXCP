@@ -20,8 +20,8 @@ use rynx_core::paths::{remove_managed, write_managed};
 use rynx_core::DaemonConfig;
 use rynx_proto::{
     AccountSpec, AppSpec, BackupDestinationSpec, BackupDestinationView, CertView,
-    CertificateStatus, FileEntry, InstallerApp, InstallerApplySpec, MailDomainSpec, MailQueueEntry,
-    PackageUpdate, ProgramInfo, SystemInfo,
+    CertificateStatus, ExternalBackupView, FileEntry, InstallerApp, InstallerApplySpec,
+    MailDomainSpec, MailQueueEntry, PackageUpdate, ProgramInfo, SystemInfo,
 };
 
 use super::{
