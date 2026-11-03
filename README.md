@@ -490,6 +490,8 @@ Its settings live under `[agent]` in `api.toml`:
 enabled = true
 interval_secs = 300
 max_events = 200
+history_retention_days = 30  # resolved/ignored findings older than this are deleted
+max_findings = 500           # hard cap; the oldest non-active rows are pruned first
 email_alerts = true
 mode = "rules"              # rules | local | api | hybrid
 local_base_url = "http://127.0.0.1:11434/v1"

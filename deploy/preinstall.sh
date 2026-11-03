@@ -376,6 +376,8 @@ configure_agent() {
   set_toml "$API_CONF" "enabled" "true"
   set_toml "$API_CONF" "interval_secs" "300"
   set_toml "$API_CONF" "max_events" "200"
+  set_toml "$API_CONF" "history_retention_days" "30"
+  set_toml "$API_CONF" "max_findings" "500"
   set_toml "$API_CONF" "email_alerts" "true"
   set_toml "$API_CONF" "mode" "\"$mode\""
   set_toml "$API_CONF" "external_enabled" "false"

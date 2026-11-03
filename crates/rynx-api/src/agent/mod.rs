@@ -117,6 +117,13 @@ pub async fn run_once(state: &ApiState, locale: Option<String>) -> Result<RunSum
         Ok(_) => {}
         Err(err) => tracing::warn!(error = %err, "stale agent findings could not be resolved"),
     }
+    let retention_secs = state.cfg.agent.history_retention_days.clamp(1, 365) as i64 * 86_400;
+    let max_findings = state.cfg.agent.max_findings.clamp(50, 10_000) as usize;
+    match state.db.prune_agent_findings(retention_secs, max_findings) {
+        Ok(0) => {}
+        Ok(removed) => tracing::info!(removed, "agent pruned old findings"),
+        Err(err) => tracing::warn!(error = %err, "agent findings could not be pruned"),
+    }
 
     let run = AgentRun {
         id: random_hex(8),

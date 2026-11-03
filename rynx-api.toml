@@ -13,6 +13,8 @@ log_level = "info,tower_http=info"
 enabled = true
 interval_secs = 900
 max_events = 200
+history_retention_days = 30
+max_findings = 500
 email_alerts = true
 mode = "rules"
 local_base_url = "http://127.0.0.1:11434/v1"

@@ -334,6 +334,10 @@ pub struct AgentConfig {
     pub interval_secs: u64,
     /// Maximum journal events inspected per run.
     pub max_events: u32,
+    /// Days to keep resolved or ignored findings before deleting them.
+    pub history_retention_days: u64,
+    /// Hard cap on stored findings; the oldest non-active rows are pruned first.
+    pub max_findings: u32,
     /// Email high and critical findings to `smtp_alert_to`.
     pub email_alerts: bool,
     /// `rules` today; `local` and `hybrid` reserve the optional LLM providers.
@@ -357,6 +361,8 @@ impl Default for AgentConfig {
             enabled: true,
             interval_secs: 300,
             max_events: 200,
+            history_retention_days: 30,
+            max_findings: 500,
             email_alerts: true,
             mode: "rules".into(),
             local_base_url: "http://127.0.0.1:11434/v1".into(),

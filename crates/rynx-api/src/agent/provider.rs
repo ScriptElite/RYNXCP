@@ -38,7 +38,9 @@ si no hay nada nuevo, usa una lista vacía. Cada hallazgo debe describir un prob
 real y accionable: no informes estados saludables ni la ausencia de problemas. Si la \
 recomendación sería \"no action required\", no lo incluyas. Reserva critical para \
 riesgos de seguridad graves o caídas totales. Omite avisos informativos o triviales: \
-no se muestran hallazgos de severidad info o low.";
+no se muestran hallazgos de severidad info o low. Básate solo en los datos del \
+digest: nunca menciones redirecciones, DNS, configuración de servidores web ni \
+puertos abiertos, porque esa telemetría no se recibe.";
 
 #[derive(Default)]
 pub struct Enhancement {
@@ -176,7 +178,7 @@ async fn local_enhance(
     .await?;
     Ok(Enhancement {
         summary: redact(&output.summary.unwrap_or_default(), 600),
-        findings: normalize_findings(output.findings.unwrap_or_default(), rules),
+        findings: normalize_findings(output.findings.unwrap_or_default(), rules, &payload),
         model: format!("local/{}", cfg.local_model.trim()),
     })
 }
@@ -219,7 +221,7 @@ async fn external_enhance(
     .await?;
     Ok(Enhancement {
         summary: redact(&output.summary.unwrap_or_default(), 600),
-        findings: normalize_findings(output.findings.unwrap_or_default(), rules),
+        findings: normalize_findings(output.findings.unwrap_or_default(), rules, &payload),
         model: format!("api/{}", cfg.external_model.trim()),
     })
 }
@@ -674,6 +676,7 @@ fn build_digest(snapshot: &Snapshot, rules: &[AgentFindingInput], locale: &str) 
 fn normalize_findings(
     findings: Vec<LlmFinding>,
     rules: &[AgentFindingInput],
+    digest: &str,
 ) -> Vec<AgentFindingInput> {
     let mut known: HashSet<String> = rules
         .iter()
@@ -710,6 +713,9 @@ fn normalize_findings(
             continue;
         }
         if has_no_action(&recommendation) || states_healthy(&title) {
+            continue;
+        }
+        if mentions_unsupported_topic(&title, &summary, digest) {
             continue;
         }
         if !known.insert(normalize_title(&title)) {
@@ -774,6 +780,46 @@ fn states_healthy(title: &str) -> bool {
     ];
     let lower = title.to_lowercase();
     PHRASES.iter().any(|phrase| lower.contains(phrase))
+}
+
+/// Topics that the telemetry digest never contains. A finding that talks about
+/// one of them is fabricated by the model, unless the same term appears in the
+/// digest (for example a "DNS lookup failed" line inside suspicious_events).
+const UNSUPPORTED_TOPICS: [&str; 24] = [
+    "redirect",
+    "redirecc",
+    "redirig",
+    "redirecion",
+    "reindirizz",
+    "weiterleitung",
+    "umleitung",
+    "перенаправлен",
+    "редирект",
+    "重定向",
+    "リダイレクト",
+    "إعادة توجيه",
+    "dns",
+    "nameserver",
+    "name server",
+    "domain name system",
+    "resolución de nombres",
+    "resolucion de nombres",
+    "域名解析",
+    "名前解決",
+    "vhost",
+    "htaccess",
+    "puerto 80",
+    "port 80",
+];
+
+/// Drops findings that describe redirects, DNS or web-server config that the
+/// digest never captured, which small models tend to hallucinate.
+fn mentions_unsupported_topic(title: &str, summary: &str, digest: &str) -> bool {
+    let text = format!("{title} {summary}").to_lowercase();
+    let digest = digest.to_lowercase();
+    UNSUPPORTED_TOPICS
+        .iter()
+        .any(|topic| text.contains(topic) && !digest.contains(topic))
 }
 
 fn normalize_title(title: &str) -> String {
@@ -891,6 +937,7 @@ mod tests {
                 },
             ],
             &rules(),
+            "",
         );
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].title, "Nuevo patrón");
@@ -924,6 +971,7 @@ mod tests {
                 },
             ],
             &[],
+            "",
         );
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].title, "Riesgo moderado");
@@ -973,9 +1021,60 @@ mod tests {
                 },
             ],
             &[],
+            "",
         );
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].title, "MariaDB no responde");
+    }
+
+    #[test]
+    fn drops_hallucinated_redirect_and_dns_findings() {
+        let findings = normalize_findings(
+            vec![
+                LlmFinding {
+                    severity: Some("critical".into()),
+                    category: Some("security".into()),
+                    title: Some("Redirección de red no autorizada".into()),
+                    summary: Some("Se ha detectado una red de red no autorizada.".into()),
+                    recommendation: Some("Revisa la configuración.".into()),
+                },
+                LlmFinding {
+                    severity: Some("high".into()),
+                    category: Some("security".into()),
+                    title: Some("Registro DNS incorrecto".into()),
+                    summary: Some("El DNS del dominio apunta a un host no autorizado.".into()),
+                    recommendation: Some("Corrige la zona DNS.".into()),
+                },
+                LlmFinding {
+                    severity: Some("high".into()),
+                    category: Some("reliability".into()),
+                    title: Some("MariaDB no responde".into()),
+                    summary: Some("La unidad mariadb está inactiva.".into()),
+                    recommendation: Some("Reinicia MariaDB desde Programas.".into()),
+                },
+            ],
+            &[],
+            "",
+        );
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].title, "MariaDB no responde");
+    }
+
+    #[test]
+    fn keeps_topics_that_are_backed_by_the_digest() {
+        let findings = normalize_findings(
+            vec![LlmFinding {
+                severity: Some("high".into()),
+                category: Some("reliability".into()),
+                title: Some("Fallos de resolución DNS".into()),
+                summary: Some("El journal muestra errores de DNS en el correo.".into()),
+                recommendation: Some("Revisa el resolver del sistema.".into()),
+            }],
+            &[],
+            "2026-01-01 smartd [warn]: DNS lookup failed for example.com",
+        );
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].title, "Fallos de resolución DNS");
     }
 
     #[tokio::test]

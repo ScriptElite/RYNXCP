@@ -1955,6 +1955,40 @@ impl PanelDb {
         Ok(changed)
     }
 
+    /// Deletes old findings so the history cannot grow without bound. Resolved
+    /// and ignored findings older than `retention_secs` are removed first; if
+    /// the table still exceeds `max_findings`, the oldest non-active rows are
+    /// dropped before active ones.
+    pub fn prune_agent_findings(
+        &self,
+        retention_secs: i64,
+        max_findings: usize,
+    ) -> Result<usize, PanelError> {
+        let conn = self.conn()?;
+        let cutoff = now_unix().saturating_sub(retention_secs.max(0));
+        let mut removed = conn.execute(
+            "DELETE FROM agent_findings \
+             WHERE status IN ('resolved', 'ignored') AND last_seen < ?1",
+            params![cutoff],
+        )?;
+        let total: i64 =
+            conn.query_row("SELECT COUNT(*) FROM agent_findings", [], |row| row.get(0))?;
+        let max_findings = max_findings.max(1) as i64;
+        if total > max_findings {
+            removed += conn.execute(
+                "DELETE FROM agent_findings WHERE id IN (
+                     SELECT id FROM agent_findings
+                     ORDER BY CASE status
+                         WHEN 'resolved' THEN 0 WHEN 'ignored' THEN 1
+                         WHEN 'acknowledged' THEN 2 ELSE 3 END,
+                     last_seen ASC
+                     LIMIT ?1)",
+                params![total - max_findings],
+            )?;
+        }
+        Ok(removed)
+    }
+
     fn get_agent_finding(&self, id: &str) -> Result<Option<AgentFinding>, PanelError> {
         let conn = self.conn()?;
         Ok(conn
@@ -2660,5 +2694,63 @@ mod tests {
         };
         db.record_agent_run(&run).unwrap();
         assert_eq!(db.latest_agent_run().unwrap().unwrap().id, "run-1");
+    }
+
+    #[test]
+    fn prunes_old_and_resolved_agent_findings() {
+        let (_dir, db) = temp_db();
+        let finding = |fingerprint: &str, severity: &str| AgentFindingInput {
+            fingerprint: fingerprint.into(),
+            severity: severity.into(),
+            category: "security".into(),
+            title: format!("Finding {fingerprint}"),
+            summary: "summary".into(),
+            evidence: Vec::new(),
+            recommendation: "review".into(),
+            source: "rules".into(),
+        };
+        let (old_resolved, _, _, _) = db
+            .upsert_agent_finding(&finding("old-resolved", "high"))
+            .unwrap();
+        let (old_ignored, _, _, _) = db
+            .upsert_agent_finding(&finding("old-ignored", "medium"))
+            .unwrap();
+        let (old_open, _, _, _) = db
+            .upsert_agent_finding(&finding("old-open", "critical"))
+            .unwrap();
+        let (fresh_open, _, _, _) = db
+            .upsert_agent_finding(&finding("fresh-open", "high"))
+            .unwrap();
+        db.set_agent_finding_status(&old_resolved.id, "acknowledged")
+            .unwrap();
+        db.resolve_stale_agent_findings(now_unix().saturating_add(1))
+            .unwrap();
+        db.set_agent_finding_status(&old_ignored.id, "ignored")
+            .unwrap();
+        db.set_agent_finding_status(&old_open.id, "open").unwrap();
+        db.set_agent_finding_status(&fresh_open.id, "open").unwrap();
+
+        let conn = db.conn().unwrap();
+        conn.execute(
+            "UPDATE agent_findings SET last_seen = 0 \
+             WHERE fingerprint IN ('old-resolved', 'old-ignored', 'old-open')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+
+        let removed = db.prune_agent_findings(86_400, 500).unwrap();
+        assert_eq!(removed, 2);
+        let remaining = db.list_agent_findings(100, None).unwrap();
+        assert_eq!(remaining.len(), 2);
+        assert!(remaining.iter().any(|item| item.id == old_open.id));
+        assert!(!remaining.iter().any(|item| item.id == old_resolved.id));
+        assert!(!remaining.iter().any(|item| item.id == old_ignored.id));
+
+        let removed = db.prune_agent_findings(365 * 86_400, 1).unwrap();
+        assert_eq!(removed, 1);
+        let remaining = db.list_agent_findings(100, None).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_ne!(remaining[0].id, old_open.id);
     }
 }
