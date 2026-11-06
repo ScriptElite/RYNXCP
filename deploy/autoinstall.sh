@@ -2,7 +2,7 @@
 # RYNXCP fully automated installer.
 #
 # Direct download from GitHub:
-#   curl -fsSL https://raw.githubusercontent.com/jschaves/RYNXCP/main/deploy/autoinstall.sh -o /root/autoinstall.sh
+#   curl -fsSL https://raw.githubusercontent.com/ScriptElite/RYNXCP/main/deploy/autoinstall.sh -o /root/autoinstall.sh
 #   sudo bash /root/autoinstall.sh
 #
 # Target: a clean Debian or Ubuntu server (Debian 13 / Ubuntu 26.04 or newer
@@ -32,7 +32,7 @@
 
 set -Eeuo pipefail
 
-REPO="${RYNXCP_REPO:-https://github.com/jschaves/RYNXCP.git}"
+REPO="${RYNXCP_REPO:-https://github.com/ScriptElite/RYNXCP.git}"
 REF="${RYNXCP_REF:-main}"
 SOURCE_DIR="${RYNX_SOURCE_DIR:-}"
 DIR="${RYNXCP_DIR:-/opt/rynxcp-src}"
